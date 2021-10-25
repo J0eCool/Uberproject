@@ -27,14 +27,9 @@ let app = new Vue({
             data.nodes[item.id] = {...item};
         },
         push(item) {
-            console.log('pushing', item)
             let node = {...item};
             node.id = generateId();
             Vue.set(data.nodes, node.id, node);
-            console.log('pushing', item)
-        },
-        remove(item) {
-            delete data.nodes[item.id];
         },
     },
 });
