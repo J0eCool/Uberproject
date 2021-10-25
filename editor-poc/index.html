@@ -6,21 +6,33 @@
 </head>
 <body>
   <div id="app">
-    <h3>Nodes</h3>
-    <ul>
-      <li v-for="node in nodes">
-        <button v-on:click="select(node)">select</button>
-        - {{node.id}} - "{{node.description}}"
-      </li>
-    </ul>
-    <div v-if="selected !== null">
-      <h3>Selected</h3>
-      <div>{{selected.id}}</div>
-      <div><input v-model="selected.description"></div>
-      <div>
-        <button v-on:click="update(selected)">Update</button>
-        <button v-on:click="push(selected)">Push</button>
+    <div>
+      <h3>Note Writer</h3>
+      <div><textarea v-model="note"></textarea></div>
+      <div><button v-on:click="publish(note)">Publish</button></div>
+      <div v-if="selected !== null && selected.type === 'builtin://Note'">
+        <h4>Parent</h4>
+        <div>{{selected.id}}</div>
+        <div>{{selected.description}}</div>
+        <div><button v-on:click="select(null)">Deselect</button></div>
       </div>
+    </div>
+
+    <hr>
+
+    <div>
+      <h3>Nodes</h3>
+      <ul>
+        <li v-for="node in nodes">
+          <button v-on:click="select(node)">{{node.id}}</button>
+          <ul>
+            <li>type: {{node.type}}</li>
+            <li v-for="val, key in node" v-if="key !== 'type' && key !== 'id'">
+              {{key}}: {{val}}
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
   </div>
 

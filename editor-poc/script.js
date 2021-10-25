@@ -2,34 +2,29 @@ function generateId() {
     return crypto.randomUUID();
 }
 
-let data = {
-    // nodes: [
-    //     { id: generateId(), description: 'abc' },
-    //     { id: generateId(), description: '123' },
-    //     { id: generateId(), description: 'fedasf' },
-    // ],
-    nodes: {},
-    selected: null,
-};
-for (let elem of ['abc', '123', 'como se dice']) {
-    let id = generateId();
-    data.nodes[id] = { id, description: elem };
-}
+let nodes = {};
 
 let app = new Vue({
     el: '#app',
-    data,
+    data: {
+        nodes,
+        note: "",
+        selected: null,
+    },
     methods: {
         select(item) {
-            data.selected = {...item};
+            app.selected = item;
         },
-        update(item) {
-            data.nodes[item.id] = {...item};
-        },
-        push(item) {
-            let node = {...item};
-            node.id = generateId();
-            Vue.set(data.nodes, node.id, node);
+        publish(text) {
+            let node = {
+                id: generateId(),
+                type: "builtin://Note",
+                description: text,
+                parent: app.selected && app.selected.id,
+            };
+            app.note = "";
+            app.selected = node;
+            Vue.set(nodes, node.id, node);
         },
     },
 });
