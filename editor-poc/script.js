@@ -30,10 +30,10 @@ Vue.component('teet', {
     template: 
         `<li>
             {{node.description}}
-            <button @click="$emit('select', node)">reply</button>
+            <button @click="$emit('select', node)">Reply</button>
             <ul>
                 <teet v-for="child in nodes"
-                    v-if="child.type === 'builtin://Note' && child.parent === node.id"
+                    v-if="child.type === 'builtin://Teet' && child.parent === node.id"
                     :node="child"
                     :nodes="nodes"
                     :selected="selected"
@@ -48,23 +48,35 @@ Vue.component('teet', {
         </li>`,
 });
 
+let urlParams = new URLSearchParams(window.location.search);
+
 let app = new Vue({
     el: '#app',
     data: {
+        application: urlParams.get('app') || 'builtin://NodeViewer',
         nodes,
         message: '',
         selected: null,
     },
     methods: {
         select(item) {
-            app.selected = item;
+            if (app.selected === item) {
+                app.selected = null;
+            } else {
+                app.selected = item;
+            }
         },
         publish(text) {
+            let parent = app.selected && app.selected.id;
             let node = {
+                // Generic properties
                 id: generateId(),
-                type: 'builtin://Note',
+                type: 'builtin://Teet',
+                links: parent ? [parent] : [],
+
+                // Note-specific properties
                 description: text,
-                parent: app.selected && app.selected.id,
+                parent,
             };
             app.message = '';
             app.selected = null;

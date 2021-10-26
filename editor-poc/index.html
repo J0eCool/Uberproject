@@ -6,11 +6,11 @@
 </head>
 <body>
   <div id="app">
-    <div>
+    <div v-if="application === 'builtin://Teeter'">
       <h3>Teeter</h3>
       <ul>
         <teet v-for="node in nodes"
-          v-if="node.type === 'builtin://Note' && node.parent === null"
+          v-if="node.type === 'builtin://Teet' && node.parent === null"
           :node="node"
           :nodes="nodes"
           :selected="selected"
@@ -24,16 +24,21 @@
       </ul>
     </div>
 
-    <hr>
-
-    <div>
+    <div v-if="application === 'builtin://NodeViewer'">
       <h3>Nodes</h3>
       <ul>
-        <li v-for="node in nodes">
-          <button v-on:click="select(node)">{{node.id}}</button>
+        <li v-for="node in nodes" :id="node.id">
+          <b>{{node.id}}</b> - {{node.type}}
           <ul>
-            <li>type: {{node.type}}</li>
-            <li v-for="val, key in node" v-if="key !== 'type' && key !== 'id'">
+            <li v-if="node.links">
+              Links
+              <ul>
+                <li v-for="link in node.links">
+                  <a :href="'#' + link">{{link}}</a>
+                </li>
+              </ul>
+            </li>
+            <li v-for="val, key in node" v-if="!['type', 'id', 'links'].includes(key)">
               {{key}}: {{val}}
             </li>
           </ul>
