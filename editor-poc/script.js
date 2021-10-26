@@ -38,8 +38,11 @@ Vue.component('teet', {
                     :nodes="nodes"
                     :selected="selected"
                     :key="child.id"
+                    @select="$emit('select', $event)"
+                    @publish="$emit('publish', $event)"
                 ></teet>
                 <teet-writer v-if="selected === node"
+                    @publish="$emit('publish', $event)"
                 ></teet-writer>
             </ul>
         </li>`,
