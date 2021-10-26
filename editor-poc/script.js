@@ -3,6 +3,15 @@ function generateId() {
 }
 
 let nodes = {};
+// Load data from storage
+for (let i = 0; i < localStorage.length; ++i) {
+    let key = localStorage.key(i);
+    nodes[key] = JSON.parse(localStorage.getItem(key));
+}
+// Setup storage event listener to sync with edits in other tabs
+window.addEventListener('storage', (event) => {
+    Vue.set(nodes, event.key, JSON.parse(event.newValue));
+});
 
 let app = new Vue({
     el: '#app',
@@ -25,6 +34,7 @@ let app = new Vue({
             app.note = "";
             app.selected = node;
             Vue.set(nodes, node.id, node);
+            localStorage.setItem(node.id, JSON.stringify(node));
         },
     },
 });

@@ -9,7 +9,7 @@
   "devDependencies": {},
   "scripts": {
     "build": "mingw32-make",
-    "serve": "python -m http.server 8080",
+    "serve": "python -m http.server 8101",
     "watch": "npm-watch build"
   },
   "author": "",
