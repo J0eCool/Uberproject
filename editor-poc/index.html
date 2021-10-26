@@ -7,15 +7,18 @@
 <body>
   <div id="app">
     <div>
-      <h3>Note Writer</h3>
-      <div><textarea v-model="note"></textarea></div>
-      <div><button v-on:click="publish(note)">Publish</button></div>
-      <div v-if="selected !== null && selected.type === 'builtin://Note'">
-        <h4>Parent</h4>
-        <div>{{selected.id}}</div>
-        <div>{{selected.description}}</div>
-        <div><button v-on:click="select(null)">Deselect</button></div>
-      </div>
+      <h3>Teeter</h3>
+      <ul>
+        <teet v-for="node in nodes"
+          v-if="node.type === 'builtin://Note' && node.parent === null"
+          :node="node"
+          :nodes="nodes"
+          :selected="selected"
+          :key="node.id"
+          @select="select($event)"
+          @publish="publish($event)"
+        ></teet>
+      </ul>
     </div>
 
     <hr>

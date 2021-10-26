@@ -13,11 +13,46 @@ window.addEventListener('storage', (event) => {
     Vue.set(nodes, event.key, JSON.parse(event.newValue));
 });
 
+Vue.component('teet-writer', {
+    data() {
+        return {
+            message: '',
+        };
+    },
+    template:
+        `<div>
+            <textarea v-model="message"></textarea>
+            <button @click="$emit('publish', message)">Publish</button>
+        </div>`,
+});
+Vue.component('teet', {
+    props: ['node', 'nodes', 'selected'],
+    template: 
+        `<li>
+            {{node.description}}
+            <button @click="$emit('select', node)">reply</button>
+            <ul>
+                <teet v-for="child in nodes"
+                    v-if="child.type === 'builtin://Note' && child.parent === node.id"
+                    :node="child"
+                    :nodes="nodes"
+                    :selected="selected"
+                    :key="child.id"
+                    @select="$emit('select', $event)"
+                    @publish="$emit('publish', $event)"
+                ></teet>
+                <teet-writer v-if="selected === node"
+                    @publish="$emit('publish', $event)"
+                ></teet-writer>
+            </ul>
+        </li>`,
+});
+
 let app = new Vue({
     el: '#app',
     data: {
         nodes,
-        note: "",
+        message: '',
         selected: null,
     },
     methods: {
@@ -27,12 +62,12 @@ let app = new Vue({
         publish(text) {
             let node = {
                 id: generateId(),
-                type: "builtin://Note",
+                type: 'builtin://Note',
                 description: text,
                 parent: app.selected && app.selected.id,
             };
-            app.note = "";
-            app.selected = node;
+            app.message = '';
+            app.selected = null;
             Vue.set(nodes, node.id, node);
             localStorage.setItem(node.id, JSON.stringify(node));
         },
