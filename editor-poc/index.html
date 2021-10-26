@@ -18,6 +18,9 @@
           @select="select($event)"
           @publish="publish($event)"
         ></teet>
+        <teet-writer v-if="selected === null"
+          @publish="publish($event)"
+        ></teet-writer>
       </ul>
     </div>
 
