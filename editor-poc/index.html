@@ -6,7 +6,7 @@
 </head>
 <body>
   <div id="app">
-    <div v-if="application === 'builtin://Teeter'">
+    <div v-if="application.id === 'builtin://Teeter'">
       <h3>Teeter</h3>
       <ul>
         <teet v-for="node in nodes"
@@ -24,13 +24,15 @@
       </ul>
     </div>
 
-    <div v-if="application === 'builtin://NodeViewer'">
+    <div v-if="application.id === 'builtin://NodeViewer'">
       <h3>Nodes</h3>
       <ul>
         <li v-for="node in nodes" :id="node.id">
-          <b>{{node.id}}</b> - {{node.type}}
+          <a v-if="node.type === 'builtin://Application'" :href='"./?app=" + node.id'><b>{{node.id}}</b></a>
+          <b v-else>{{node.id}}</b>
+          - {{node.type}}
           <ul>
-            <li v-if="node.links">
+            <li v-if="node.links.length > 0">
               Links
               <ul>
                 <li v-for="link in node.links">
@@ -38,8 +40,8 @@
                 </li>
               </ul>
             </li>
-            <li v-for="val, key in node" v-if="!['type', 'id', 'links'].includes(key)">
-              {{key}}: {{val}}
+            <li v-for="type, key in nodes[node.type].fields">
+              {{key}}: {{node[key]}}
             </li>
           </ul>
         </li>

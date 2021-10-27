@@ -2,7 +2,102 @@ function generateId() {
     return crypto.randomUUID();
 }
 
-let nodes = {};
+// Initialize nodes with all the builtin types and applications
+let nodes = {
+    // Primitive types (no type imports)
+    'builtin://String': {
+        type: 'builtin://Type',
+        name: "String",
+        params: [],
+        fields: {},
+        types: {},
+    },
+
+    // Generic types
+    'builtin://Array': {
+        type: 'builtin://Type',
+        name: "Array",
+        params: ['t'],
+        fields: {},
+        types: {},
+    },
+    'builtin://Dict': {
+        type: 'builtin://Type',
+        name: "Dictionary",
+        params: ['key', 'val'],
+        fields: {},
+        types: {},
+    },
+
+    // More complex builtin types
+    'builtin://Application': {
+        type: 'builtin://Type',
+        name: "Application",
+        params: [],
+        fields: {
+            title: 'String',
+        },
+        types: {
+            String: 'builtin://String',
+        },
+    },
+    'builtin://Type': {
+        type: 'builtin://Type',
+        name: 'Type',
+        // type parameters for generic types, e.g. Array<String>
+        params: [],
+        // names + types of properties on a type
+        // TODO: more than just POD structs
+        fields: {
+            fields: ['Dict', 'String', 'SExpr'],
+            name: 'String',
+            params: ['Array', 'TypeName'],
+            types: ['Dict', 'TypeName', ['Array', 'String']],
+        },
+        // type imports; what specific URLs are we referencing
+        types: {
+            Array: ['import', 'builtin://Array'],
+            Dict: ['import', 'builtin://Dict'],
+            SExpr: ['variant', 'String', 'SExpr'],
+            String: ['import', 'builtin://String'],
+            Type: ['import', 'builtin://Type'],
+            TypeExpr: ['import', 'builtin://Type'],
+            TypeName: ['import', 'builtin://String'],
+            Url: ['import', 'builtin://String'],
+        },
+    },
+
+    // Types for sample apps
+    'builtin://Teet': {
+        type: 'builtin://Type',
+        name: 'Teet',
+        fields: {
+            description: 'String',
+            parent: 'Teet',
+        },
+        types: {
+            String: 'builtin://String',
+            Teet: '(self)',
+        },
+    },
+
+    // Applications
+    'builtin://NodeViewer': {
+        type: 'builtin://Application',
+        title: 'Node Viewer',
+    },
+    'builtin://Teeter': {
+        type: 'builtin://Application',
+        title: 'Teeter App',
+    },
+};
+
+// Initialize any un-set fields that all Nodes need
+for (let id in nodes) {
+    nodes[id].id = id;
+    nodes[id].links = [];
+}
+
 // Load data from storage
 for (let i = 0; i < localStorage.length; ++i) {
     let key = localStorage.key(i);
@@ -49,11 +144,13 @@ Vue.component('teet', {
 });
 
 let urlParams = new URLSearchParams(window.location.search);
+let application = nodes[urlParams.get('app')] || nodes['builtin://NodeViewer'];
+document.title = application.title;
 
 let app = new Vue({
     el: '#app',
     data: {
-        application: urlParams.get('app') || 'builtin://NodeViewer',
+        application,
         nodes,
         message: '',
         selected: null,
