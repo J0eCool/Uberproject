@@ -38,7 +38,7 @@ let nodes = {
             title: 'String',
         },
         types: {
-            String: 'builtin://String',
+            String: ['import', 'builtin://String'],
         },
     },
     'builtin://Type': {
@@ -76,8 +76,8 @@ let nodes = {
             parent: 'Teet',
         },
         types: {
-            String: 'builtin://String',
-            Teet: '(self)',
+            String: ['import', 'builtin://String'],
+            Teet: ['self'],
         },
     },
 
@@ -94,8 +94,19 @@ let nodes = {
 
 // Initialize any un-set fields that all Nodes need
 for (let id in nodes) {
-    nodes[id].id = id;
-    nodes[id].links = [];
+    let node = nodes[id];
+    node.id = id;
+    node.links = [];
+
+    // auto-populate links for type imports
+    if (node.type === 'builtin://Type') {
+        for (let ty of Object.keys(node.types)) {
+            let loader = node.types[ty];
+            if (loader[0] === 'import' && !node.links.includes(loader[1])) {
+                node.links.push(loader[1]);
+            }
+        }
+    }
 }
 
 // Load data from storage

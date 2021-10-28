@@ -28,7 +28,10 @@
       <h3>Nodes</h3>
       <ul>
         <li v-for="node in nodes" :id="node.id">
-          <a v-if="node.type === 'builtin://Application'" :href='"./?app=" + node.id'><b>{{node.id}}</b></a>
+          <a v-if="node.type === 'builtin://Application'"
+            :href='"./?app=" + node.id'>
+            <b>{{node.id}}</b>
+          </a>
           <b v-else>{{node.id}}</b>
           - {{node.type}}
           <ul>
