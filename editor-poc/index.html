@@ -43,6 +43,14 @@
                 </li>
               </ul>
             </li>
+            <li v-if="backlinks[node.id].length > 0">
+              Backlinks
+              <ul>
+                <li v-for="link in backlinks[node.id]">
+                  <a :href="'#' + link">{{link}}</a>
+                </li>
+              </ul>
+            </li>
             <li v-for="type, key in nodes[node.type].fields">
               {{key}}: {{node[key]}}
             </li>

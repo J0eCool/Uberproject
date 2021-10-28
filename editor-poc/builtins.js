@@ -1,5 +1,5 @@
 // Initialize nodes with all the builtin types and applications
-let nodes = {
+let builtins = {
     // Primitive types (no type imports)
     'builtin://String': {
         type: 'builtin://Type',
@@ -89,8 +89,8 @@ let nodes = {
 };
 
 // Initialize any un-set fields that all Nodes need
-for (let id in nodes) {
-    let node = nodes[id];
+for (let id in builtins) {
+    let node = builtins[id];
     node.id = id;
     node.links = [];
 
