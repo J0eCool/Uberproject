@@ -86,6 +86,10 @@ let builtins = {
         type: 'builtin://Application',
         title: 'Teeter App',
     },
+    'builtin://GlowySun': {
+        type: 'builtin://Application',
+        title: 'A glowy sun',
+    },
 };
 
 // Initialize any un-set fields that all Nodes need

@@ -122,3 +122,65 @@ let app = new Vue({
         },
     },
 });
+
+if (application.id === 'builtin://GlowySun') {
+    let canvas = document.getElementById('glowy-sun-canvas');
+    let width = canvas.width;
+    let height = canvas.height;
+    let ctx = canvas.getContext('2d');
+    let pixels = new Uint8Array(4 * width * height);
+    let image = ctx.createImageData(width, height);
+
+    let particles = [];
+    for (let i = 0; i < 200000; ++i) {
+        let x = width*(Math.random()/2 + 1/4);
+        let y = height*(Math.random()/2 + 1/4);
+        let speed = 100.0;
+        let angle = Math.PI/4 + Math.atan2(x - width/2, y - height/2);
+        let vx = speed * Math.cos(angle) + 4*Math.random()-0.5;
+        let vy = speed * Math.sin(angle) + 4*Math.random()-0.5;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        let color = Math.random()*3;
+        if (color < 1) { r = 1; }
+        else if (color < 2) { g = 1; }
+        else { b = 1; }
+        particles.push({
+            x, y,
+            vx, vy,
+            r, g, b,
+        });
+    }
+    function frame() {
+        let dt = 1/60;
+
+        // clear canvas to black
+        for (let i = 0; i < width*height; ++i) {
+            let pix = 4 * i;
+            pixels[pix+0] = 0;
+            pixels[pix+1] = 0;
+            pixels[pix+2] = 0;
+            pixels[pix+3] = 255;
+        }
+
+        let c = 8;
+        for (let p of particles) {
+            let accel = 1;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vx += -p.vy * accel * dt;
+            p.vy += p.vx * accel * dt;
+
+            let pix = ((p.x|0) + (p.y|0)*width)<<2;
+            pixels[pix+0] += c * p.r;
+            pixels[pix+1] += c * p.g;
+            pixels[pix+2] += c * p.b;
+        }
+
+        image.data.set(pixels);
+        ctx.putImageData(image, 0, 0);
+        requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+}
