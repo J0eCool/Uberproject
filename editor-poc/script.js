@@ -27,25 +27,62 @@ function setNode(id, node) {
     }
 }
 
-// Adds a node into the graph and also persists it in storage
-function saveNode(id, node) {
-    setNode(id, node);
-    localStorage.setItem(id, JSON.stringify(node));
-}
-
+// Initialize builtin nodes
 for (let id in builtins) {
     setNode(id, builtins[id]);
 }
 
-// Load data from storage
-for (let i = 0; i < localStorage.length; ++i) {
-    let id = localStorage.key(i);
-    let node = JSON.parse(localStorage.getItem(id));
+// Initialize IndexedDB
+let idb;
+let idbRequest = indexedDB.open('NodeDB', 1);
+idbRequest.onerror = (event) => {
+    console.error('IDB Initialization Error:', event);
+    throw 'Failed to initialize IndexedDB';
+};
+idbRequest.onupgradeneeded = (event) => {
+    idb = event.target.result;
+    let nodeStore = idb.createObjectStore('nodes', { keyPath: 'id' });
+    nodeStore.createIndex('type', 'type', { unique: false });
+};
+idbRequest.onsuccess = (event) => {
+    idb = event.target.result;
+    idb.onerror = (event) => {
+        console.error('IDB Error:', event);
+    };
+
+    // Read all existing node data into memory
+    let store = idb.transaction('nodes').objectStore('nodes');
+    store.openCursor().onsuccess = (event) => {
+        let cursor = event.target.result;
+        if (cursor) {
+            setNode(cursor.key, cursor.value);
+            cursor.continue();
+        }
+    };
+};
+
+// Adds a node into the graph and also persists it in storage
+function saveNode(id, node) {
     setNode(id, node);
+
+    let trans = idb.transaction(['nodes'], 'readwrite');
+    trans.onerror = (event) => {
+        console.error('IDB Transaction Error:', event);
+    };
+    let store = trans.objectStore('nodes');
+    store.add(node);
+
+    // Trigger a storage event to update other tabs
+    localStorage.setItem(id, Date.now());
 }
+
 // Setup storage event listener to sync with edits in other tabs
+// Need to use localStorage to track when a key was updated last,
+// because IDB doesn't have a similar mechanism :facepalm:
 window.addEventListener('storage', (event) => {
-    Vue.set(nodes, event.key, JSON.parse(event.newValue));
+    idb.transaction('nodes').objectStore('nodes').get(event.key).onsuccess = (idbEvent) => {
+        setNode(event.key, idbEvent.target.result);
+    };
 });
 
 Vue.component('teet-writer', {
@@ -118,7 +155,7 @@ let app = new Vue({
             };
             app.message = '';
             app.selected = null;
-            saveNode(id, node);
+            saveNode(node.id, node);
         },
     },
 });
