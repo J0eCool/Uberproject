@@ -170,13 +170,20 @@ if (application.id === 'builtin://GlowySun') {
 
     let particles = [];
     for (let i = 0; i < 200000; ++i) {
-        let x = width*(Math.random()/2 + 1/4);
-        let y = height*(Math.random()/2 + 1/4);
-        let speed = 100.0;
-        let angle = Math.PI/4 + Math.atan2(x - width/2, y - height/2);
-        let vx = speed * Math.cos(angle) + 4*Math.random()-0.5;
-        let vy = speed * Math.sin(angle) + 4*Math.random()-0.5;
-        let r = 0;
+        let r = Math.random() + Math.random();
+        if (r >= 1) { r = 2 - r; }
+        let angle = Math.random() * 2*Math.PI;
+        let maxR = Math.min(width, height)/4;
+        let x = width/2 + maxR*r*Math.cos(angle);
+        let y = height/2 + maxR*r*Math.sin(angle);
+        let speed = 5000.0;
+        let cx = x - width/2;
+        let cy = y - height/2;
+        let c = r / maxR;
+        angle += Math.PI/4;
+        let vx = c * speed * Math.cos(angle) + 4*Math.random()-0.5;
+        let vy = c * speed * Math.sin(angle) + 4*Math.random()-0.5;
+         r = 0;
         let g = 0;
         let b = 0;
         let color = Math.random()*3;
