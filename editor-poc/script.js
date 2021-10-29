@@ -121,7 +121,7 @@ Vue.component('teet', {
 });
 
 let urlParams = new URLSearchParams(window.location.search);
-let application = nodes[urlParams.get('app')] || nodes['builtin://NodeViewer'];
+let application = nodes[urlParams.get('app')] || nodes['builtin://node-viewer'];
 document.title = application.title;
 
 let app = new Vue({
@@ -160,7 +160,7 @@ let app = new Vue({
     },
 });
 
-if (application.id === 'builtin://GlowySun') {
+if (application.id === 'builtin://glowy-sun') {
     let canvas = document.getElementById('glowy-sun-canvas');
     let width = canvas.width;
     let height = canvas.height;
@@ -177,12 +177,11 @@ if (application.id === 'builtin://GlowySun') {
         let x = width/2 + maxR*r*Math.cos(angle);
         let y = height/2 + maxR*r*Math.sin(angle);
         let speed = 5000.0;
-        let cx = x - width/2;
-        let cy = y - height/2;
         let c = r / maxR;
-        angle += Math.PI/4;
-        let vx = c * speed * Math.cos(angle) + 4*Math.random()-0.5;
-        let vy = c * speed * Math.sin(angle) + 4*Math.random()-0.5;
+        angle += Math.PI/2;
+        let randSpeed = 0.25;
+        let vx = c * speed * Math.cos(angle) * (1 + randSpeed*(Math.random() - 0.5));
+        let vy = c * speed * Math.sin(angle) * (1 + randSpeed*(Math.random() - 0.5));
          r = 0;
         let g = 0;
         let b = 0;
@@ -208,18 +207,18 @@ if (application.id === 'builtin://GlowySun') {
             pixels[pix+3] = 255;
         }
 
-        let c = 8;
+        let c = 20;
+        let accel = 1.25;
         for (let p of particles) {
-            let accel = 1;
             p.x += p.vx * dt;
             p.y += p.vy * dt;
             p.vx += -p.vy * accel * dt;
             p.vy += p.vx * accel * dt;
 
             let pix = ((p.x|0) + (p.y|0)*width)<<2;
-            pixels[pix+0] += c * p.r;
-            pixels[pix+1] += c * p.g;
-            pixels[pix+2] += c * p.b;
+            pixels[pix+0] += (c * p.r)*(256-pixels[pix+0])/256;
+            pixels[pix+1] += (c * p.g)*(256-pixels[pix+1])/256;
+            pixels[pix+2] += (c * p.b)*(256-pixels[pix+2])/256;
         }
 
         image.data.set(pixels);

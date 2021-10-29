@@ -78,15 +78,15 @@ let builtins = {
     },
 
     // Applications
-    'builtin://NodeViewer': {
+    'builtin://node-viewer': {
         type: 'builtin://Application',
         title: 'Node Viewer',
     },
-    'builtin://Teeter': {
+    'builtin://teeter': {
         type: 'builtin://Application',
         title: 'Teeter App',
     },
-    'builtin://GlowySun': {
+    'builtin://glowy-sun': {
         type: 'builtin://Application',
         title: 'A glowy sun',
     },

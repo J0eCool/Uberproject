@@ -6,7 +6,7 @@
 </head>
 <body>
   <div id="app">
-    <div v-if="application.id === 'builtin://Teeter'">
+    <div v-if="application.id === 'builtin://teeter'">
       <h3>Teeter</h3>
       <ul>
         <teet v-for="node in nodes"
@@ -24,7 +24,7 @@
       </ul>
     </div>
 
-    <div v-if="application.id === 'builtin://NodeViewer'">
+    <div v-if="application.id === 'builtin://node-viewer'">
       <h3>Nodes</h3>
       <ul>
         <li v-for="node in nodes" :id="node.id">
@@ -59,7 +59,7 @@
       </ul>
     </div>
 
-    <div v-if="application.id === 'builtin://GlowySun'">
+    <div v-if="application.id === 'builtin://glowy-sun'">
       <canvas id='glowy-sun-canvas' width=320 height=240
         style="position:absolute;left:0px;top:0px;
           width:100%;max-height:100%;
