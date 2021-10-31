@@ -85,44 +85,13 @@ window.addEventListener('storage', (event) => {
     };
 });
 
-Vue.component('teet-writer', {
-    data() {
-        return {
-            message: '',
-        };
-    },
-    template:
-        `<div>
-            <textarea v-model="message"></textarea>
-            <button @click="$emit('publish', message)">Publish</button>
-        </div>`,
-});
-Vue.component('teet', {
-    props: ['node', 'nodes', 'selected'],
-    template: 
-        `<li>
-            {{node.description}}
-            <button @click="$emit('select', node)">Reply</button>
-            <ul>
-                <teet v-for="child in nodes"
-                    v-if="child.type === 'builtin://Teet' && child.parent === node.id"
-                    :node="child"
-                    :nodes="nodes"
-                    :selected="selected"
-                    :key="child.id"
-                    @select="$emit('select', $event)"
-                    @publish="$emit('publish', $event)"
-                ></teet>
-                <teet-writer v-if="selected === node"
-                    @publish="$emit('publish', $event)"
-                ></teet-writer>
-            </ul>
-        </li>`,
-});
 
 let urlParams = new URLSearchParams(window.location.search);
 let application = nodes[urlParams.get('app')] || nodes['builtin://node-viewer'];
 document.title = application.title;
+
+if (application.init) { application.init(); }
+document.getElementById('app').innerHTML = application.template;
 
 let app = new Vue({
     el: '#app',
@@ -161,7 +130,7 @@ let app = new Vue({
 });
 
 if (application.id === 'builtin://glowy-sun') {
-    let canvas = document.getElementById('glowy-sun-canvas');
+    let canvas = document.getElementById('canvas');
     let width = canvas.width;
     let height = canvas.height;
     let ctx = canvas.getContext('2d');
