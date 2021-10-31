@@ -88,110 +88,21 @@ window.addEventListener('storage', (event) => {
 
 let urlParams = new URLSearchParams(window.location.search);
 let application = nodes[urlParams.get('app')] || nodes['builtin://node-viewer'];
+application = {...application};
 document.title = application.title;
 
-if (application.init) { application.init(); }
-document.getElementById('app').innerHTML = application.template;
+let imports = {
+    backlinks,
+    nodes,
+};
 
-let app = new Vue({
-    el: '#app',
-    data: {
-        application,
-        backlinks,
-        nodes,
-        message: '',
-        selected: null,
-    },
-    methods: {
-        select(item) {
-            if (app.selected === item) {
-                app.selected = null;
-            } else {
-                app.selected = item;
-            }
-        },
-        publish(text) {
-            let parent = app.selected && app.selected.id;
-            let node = {
-                // Generic properties
-                id: generateId(),
-                type: 'builtin://Teet',
-                links: parent ? [parent] : [],
+if (application.init) {
+    application.init(imports);
+}
 
-                // Note-specific properties
-                description: text,
-                parent,
-            };
-            app.message = '';
-            app.selected = null;
-            saveNode(node.id, node);
-        },
-    },
-});
-
-if (application.id === 'builtin://glowy-sun') {
-    let canvas = document.getElementById('canvas');
-    let width = canvas.width;
-    let height = canvas.height;
-    let ctx = canvas.getContext('2d');
-    let pixels = new Uint8Array(4 * width * height);
-    let image = ctx.createImageData(width, height);
-
-    let particles = [];
-    for (let i = 0; i < 200000; ++i) {
-        let r = Math.random() + Math.random();
-        if (r >= 1) { r = 2 - r; }
-        let angle = Math.random() * 2*Math.PI;
-        let maxR = Math.min(width, height)/4;
-        let x = width/2 + maxR*r*Math.cos(angle);
-        let y = height/2 + maxR*r*Math.sin(angle);
-        let speed = 5000.0;
-        let c = r / maxR;
-        angle += Math.PI/2;
-        let randSpeed = 0.25;
-        let vx = c * speed * Math.cos(angle) * (1 + randSpeed*(Math.random() - 0.5));
-        let vy = c * speed * Math.sin(angle) * (1 + randSpeed*(Math.random() - 0.5));
-         r = 0;
-        let g = 0;
-        let b = 0;
-        let color = Math.random()*3;
-        if (color < 1) { r = 1; }
-        else if (color < 2) { g = 1; }
-        else { b = 1; }
-        particles.push({
-            x, y,
-            vx, vy,
-            r, g, b,
-        });
-    }
+if (application.update) {
     function frame() {
-        let dt = 1/60;
-
-        // clear canvas to black
-        for (let i = 0; i < width*height; ++i) {
-            let pix = 4 * i;
-            pixels[pix+0] = 0;
-            pixels[pix+1] = 0;
-            pixels[pix+2] = 0;
-            pixels[pix+3] = 255;
-        }
-
-        let c = 20;
-        let accel = 1.25;
-        for (let p of particles) {
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-            p.vx += -p.vy * accel * dt;
-            p.vy += p.vx * accel * dt;
-
-            let pix = ((p.x|0) + (p.y|0)*width)<<2;
-            pixels[pix+0] += (c * p.r)*(256-pixels[pix+0])/256;
-            pixels[pix+1] += (c * p.g)*(256-pixels[pix+1])/256;
-            pixels[pix+2] += (c * p.b)*(256-pixels[pix+2])/256;
-        }
-
-        image.data.set(pixels);
-        ctx.putImageData(image, 0, 0);
+        application.update();
         requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);

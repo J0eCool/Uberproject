@@ -81,62 +81,73 @@ let builtins = {
     'builtin://node-viewer': {
         type: 'builtin://Application',
         title: 'Node Viewer',
-        template: `
-            <h3>Nodes</h3>
-            <ul>
-                <li v-for="node in nodes" :id="node.id">
-                    <a v-if="node.type === 'builtin://Application'"
-                        :href='"./?app=" + node.id'>
-                        <b>{{node.id}}</b>
-                    </a>
-                    <b v-else>{{node.id}}</b>
-                    - {{node.type}}
-                    <ul>
-                    <li v-if="node.links.length > 0">
-                        Links
+        init() {
+            document.getElementById('app').innerHTML = `
+                <h3>Nodes</h3>
+                <ul>
+                    <li v-for="node in nodes" :id="node.id">
+                        <a v-if="node.type === 'builtin://Application'"
+                            :href='"./?app=" + node.id'>
+                            <b>{{node.id}}</b>
+                        </a>
+                        <b v-else>{{node.id}}</b>
+                        - {{node.type}}
                         <ul>
-                        <li v-for="link in node.links">
-                            <a :href="'#' + link">{{link}}</a>
+                        <li v-if="node.links.length > 0">
+                            Links
+                            <ul>
+                            <li v-for="link in node.links">
+                                <a :href="'#' + link">{{link}}</a>
+                            </li>
+                            </ul>
+                        </li>
+                        <li v-if="backlinks[node.id].length > 0">
+                            Backlinks
+                            <ul>
+                            <li v-for="link in backlinks[node.id]">
+                                <a :href="'#' + link">{{link}}</a>
+                            </li>
+                            </ul>
+                        </li>
+                        <li v-for="type, key in nodes[node.type].fields">
+                            {{key}}: {{node[key]}}
                         </li>
                         </ul>
                     </li>
-                    <li v-if="backlinks[node.id].length > 0">
-                        Backlinks
-                        <ul>
-                        <li v-for="link in backlinks[node.id]">
-                            <a :href="'#' + link">{{link}}</a>
-                        </li>
-                        </ul>
-                    </li>
-                    <li v-for="type, key in nodes[node.type].fields">
-                        {{key}}: {{node[key]}}
-                    </li>
-                    </ul>
-                </li>
-            </ul>
-        `,
+                </ul>
+            `;
+
+            let app = new Vue({
+                el: '#app',
+                data: {
+                    backlinks: imports.backlinks,
+                    nodes: imports.nodes,
+                },
+            });
+        }
     },
     'builtin://teeter': {
         type: 'builtin://Application',
         title: 'Teeter App',
-        template: `
-            <h3>Teeter</h3>
-            <ul>
-            <teet v-for="node in nodes"
-                v-if="node.type === 'builtin://Teet' && node.parent === null"
-                :node="node"
-                :nodes="nodes"
-                :selected="selected"
-                :key="node.id"
-                @select="select($event)"
-                @publish="publish($event)"
-            ></teet>
-            <teet-writer v-if="selected === null"
-                @publish="publish($event)"
-            ></teet-writer>
-            </ul>
-        `,
-        init() {
+        init(imports) {
+            document.getElementById('app').innerHTML = `
+                <h3>Teeter</h3>
+                <ul>
+                <teet v-for="node in nodes"
+                    v-if="node.type === 'builtin://Teet' && node.parent === null"
+                    :node="node"
+                    :nodes="nodes"
+                    :selected="selected"
+                    :key="node.id"
+                    @select="select($event)"
+                    @publish="publish($event)"
+                ></teet>
+                <teet-writer v-if="selected === null"
+                    @publish="publish($event)"
+                ></teet-writer>
+                </ul>
+            `;
+
             Vue.component('teet-writer', {
                 data() {
                     return {
@@ -171,18 +182,124 @@ let builtins = {
                         </ul>
                     </li>`,
             });
+
+            let app = new Vue({
+                el: '#app',
+                data: {
+                    backlinks: imports.backlinks,
+                    nodes: imports.nodes,
+                    message: '',
+                    selected: null,
+                },
+                methods: {
+                    select(item) {
+                        if (app.selected === item) {
+                            app.selected = null;
+                        } else {
+                            app.selected = item;
+                        }
+                    },
+                    publish(text) {
+                        let parent = app.selected && app.selected.id;
+                        let node = {
+                            // Generic properties
+                            id: generateId(),
+                            type: 'builtin://Teet',
+                            links: parent ? [parent] : [],
+            
+                            // Note-specific properties
+                            description: text,
+                            parent,
+                        };
+                        app.message = '';
+                        app.selected = null;
+                        saveNode(node.id, node);
+                    },
+                },
+            });
         },
     },
     'builtin://glowy-sun': {
         type: 'builtin://Application',
         title: 'A glowy sun',
-        template: `
-            <canvas id='canvas' width=320 height=240
-                style="position:absolute;left:0px;top:0px;
-                width:100%;max-height:100%;
-                object-fit:contain;image-rendering:pixelated"
-            ></canvas>
-        `,
+        init() {
+            document.getElementById('app').innerHTML = `
+                <canvas id='canvas' width=320 height=240
+                    style="position:absolute;left:0px;top:0px;
+                    width:100%;max-height:100%;
+                    object-fit:contain;image-rendering:pixelated"
+                ></canvas>
+            `;
+            let canvas = document.getElementById('canvas');
+            this.width = canvas.width;
+            this.height = canvas.height;
+            let w = this.width;
+            let h = this.height;
+            this.ctx = canvas.getContext('2d');
+            this.pixels = new Uint8Array(4 * w * h);
+            this.image = this.ctx.createImageData(w, h);
+            
+            this.particles = [];
+            for (let i = 0; i < 200000; ++i) {
+                let r = Math.random() + Math.random();
+                if (r >= 1) { r = 2 - r; }
+                let angle = Math.random() * 2*Math.PI;
+                let maxR = Math.min(w, h)/4;
+                let x = w/2 + maxR*r*Math.cos(angle);
+                let y = h/2 + maxR*r*Math.sin(angle);
+                let speed = 5000.0;
+                let c = r / maxR;
+                angle += Math.PI/2;
+                let randSpeed = 0.25;
+                let vx = c * speed * Math.cos(angle) * (1 + randSpeed*(Math.random() - 0.5));
+                let vy = c * speed * Math.sin(angle) * (1 + randSpeed*(Math.random() - 0.5));
+                r = 0;
+                let g = 0;
+                let b = 0;
+                let color = Math.random()*3;
+                if (color < 1) { r = 1; }
+                else if (color < 2) { g = 1; }
+                else { b = 1; }
+                this.particles.push({
+                    x, y,
+                    vx, vy,
+                    r, g, b,
+                });
+            }
+        },
+        update() {
+            let dt = 1/60;
+
+            let w = this.width;
+            let h = this.height;
+            let pixels = this.pixels;
+
+            // clear canvas to black
+            for (let i = 0; i < w*h; ++i) {
+                let pix = 4 * i;
+                pixels[pix+0] = 0;
+                pixels[pix+1] = 0;
+                pixels[pix+2] = 0;
+                pixels[pix+3] = 255;
+            }
+
+            let c = 20;
+            let accel = 1.25;
+            for (let p of this.particles) {
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vx += -p.vy * accel * dt;
+                p.vy += p.vx * accel * dt;
+
+                let pix = ((p.x|0) + (p.y|0)*w)<<2;
+                pixels[pix+0] += (c * p.r)*(256-pixels[pix+0])/256;
+                pixels[pix+1] += (c * p.g)*(256-pixels[pix+1])/256;
+                pixels[pix+2] += (c * p.b)*(256-pixels[pix+2])/256;
+            }
+
+            this.image.data.set(pixels);
+            this.ctx.putImageData(this.image, 0, 0);
+        },
     },
 };
 
