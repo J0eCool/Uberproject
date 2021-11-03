@@ -1,42 +1,42 @@
 // Initialize nodes with all the builtin types and applications
 let builtins = {
     // Primitive types (no type imports)
-    'builtin://String': {
+    'builtin://Any': {
         type: 'builtin://Type',
-        name: "String",
+        name: 'Any',
         params: [],
         fields: {},
+        methods: {},
+        types: {},
+    },
+    'builtin://String': {
+        type: 'builtin://Type',
+        name: 'String',
+        params: [],
+        fields: {},
+        methods: {},
         types: {},
     },
 
     // Generic types
     'builtin://Array': {
         type: 'builtin://Type',
-        name: "Array",
+        name: 'Array',
         params: ['t'],
         fields: {},
+        methods: {},
         types: {},
     },
     'builtin://Dict': {
         type: 'builtin://Type',
-        name: "Dictionary",
+        name: 'Dictionary',
         params: ['key', 'val'],
         fields: {},
+        methods: {},
         types: {},
     },
 
     // More complex builtin types
-    'builtin://Application': {
-        type: 'builtin://Type',
-        name: "Application",
-        params: [],
-        fields: {
-            title: 'String',
-        },
-        types: {
-            String: ['import', 'builtin://String'],
-        },
-    },
     'builtin://Type': {
         type: 'builtin://Type',
         name: 'Type',
@@ -45,23 +45,54 @@ let builtins = {
         // names + types of properties on a type
         // TODO: more than just POD structs
         fields: {
-            fields: ['Dict', 'String', 'SExpr'],
+            fields: 'StringDict',
             name: 'String',
-            params: ['Array', 'TypeName'],
-            types: ['Dict', 'TypeName', ['Array', 'String']],
+            methods: 'SigDict',
+            params: 'StringArray',
+            types: 'StringDict',
         },
+        methods: {},
         // type imports; what specific URLs are we referencing
         types: {
-            Array: ['import', 'builtin://Array'],
-            Dict: ['import', 'builtin://Dict'],
-            SExpr: ['variant', 'String', 'SExpr'],
+            SigDict: ['import', 'builtin://Dict', 'String', 'Signature'],
+            Signature: ['tuple', 'TypeArray', 'TypeArray'],
             String: ['import', 'builtin://String'],
+            StringArray: ['import', 'builtin://Array', 'String'],
+            StringDict: ['import', 'builtin://Dict', 'String', 'String'],
             Type: ['import', 'builtin://Type'],
-            TypeExpr: ['import', 'builtin://Type'],
-            TypeName: ['import', 'builtin://String'],
-            Url: ['import', 'builtin://String'],
+            TypeArray: ['import', 'builtin://Array', 'Type'],
         },
     },
+    'builtin://Application': {
+        type: 'builtin://Type',
+        name: 'Application',
+        params: [],
+        fields: {
+            title: 'String',
+            imports: 'ImportDict',
+        },
+        methods: {
+            init: [[], ['ImportDict']],
+            update: [[], []],
+        },
+        types: {
+            Any: ['import', 'builtin://Any'],
+            ImportDict: ['import', 'builtin://Dict', 'String', 'Any'],
+            String: ['import', 'builtin://String'],
+        },
+    },
+    'builtin://Library': {
+        type: 'builtin://Type',
+        name: 'Type',
+        params: [],
+        fields: {},
+        methods: {},
+        types: {},
+    },
+
+    // ---------------
+    // Below this line, these are samples that aren't part of the syscall layer
+    // Well the default NodeViewer probably needs to be built in to bootstrap lol
 
     // Types for sample apps
     'builtin://Teet': {
@@ -71,18 +102,36 @@ let builtins = {
             description: 'String',
             parent: 'Teet',
         },
+        methods: {},
         types: {
             String: ['import', 'builtin://String'],
             Teet: ['self'],
         },
     },
 
+    // Libraries
+    'builtin://VueApp': {
+        type: 'builtin://Library',
+        setAppHtml(html) {
+            document.getElementById('app').innerHTML = html;
+        },
+        newApp(params) {
+            return new Vue(params);
+        },
+        component(name, params) {
+            return Vue.component(name, params);
+        }
+    },
+    
     // Applications
     'builtin://node-viewer': {
         type: 'builtin://Application',
         title: 'Node Viewer',
-        init() {
-            document.getElementById('app').innerHTML = `
+        imports: {
+            vue: 'builtin://VueApp',
+        },
+        init(imports) {
+            imports.vue.setAppHtml(`
                 <h3>Nodes</h3>
                 <ul>
                     <li v-for="node in nodes" :id="node.id">
@@ -115,22 +164,25 @@ let builtins = {
                         </ul>
                     </li>
                 </ul>
-            `;
+            `);
 
-            let app = new Vue({
+            let app = imports.vue.newApp({
                 el: '#app',
                 data: {
                     backlinks: imports.backlinks,
                     nodes: imports.nodes,
                 },
             });
-        }
+        },
     },
     'builtin://teeter': {
         type: 'builtin://Application',
         title: 'Teeter App',
+        imports: {
+            vue: 'builtin://VueApp',
+        },
         init(imports) {
-            document.getElementById('app').innerHTML = `
+            imports.vue.setAppHtml(`
                 <h3>Teeter</h3>
                 <ul>
                 <teet v-for="node in nodes"
@@ -146,9 +198,9 @@ let builtins = {
                     @publish="publish($event)"
                 ></teet-writer>
                 </ul>
-            `;
+            `);
 
-            Vue.component('teet-writer', {
+            imports.vue.component('teet-writer', {
                 data() {
                     return {
                         message: '',
@@ -160,7 +212,7 @@ let builtins = {
                         <button @click="$emit('publish', message)">Publish</button>
                     </div>`,
             });
-            Vue.component('teet', {
+            imports.vue.component('teet', {
                 props: ['node', 'nodes', 'selected'],
                 template: 
                     `<li>
@@ -183,7 +235,7 @@ let builtins = {
                     </li>`,
             });
 
-            let app = new Vue({
+            let app = imports.vue.newApp({
                 el: '#app',
                 data: {
                     backlinks: imports.backlinks,
@@ -222,14 +274,17 @@ let builtins = {
     'builtin://glowy-sun': {
         type: 'builtin://Application',
         title: 'A glowy sun',
-        init() {
-            document.getElementById('app').innerHTML = `
+        imports: {
+            vue: 'builtin://VueApp',
+        },
+        init(imports) {
+            imports.vue.setAppHtml(`
                 <canvas id='canvas' width=320 height=240
                     style="position:absolute;left:0px;top:0px;
                     width:100%;max-height:100%;
                     object-fit:contain;image-rendering:pixelated"
                 ></canvas>
-            `;
+            `);
             let canvas = document.getElementById('canvas');
             this.width = canvas.width;
             this.height = canvas.height;

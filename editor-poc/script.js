@@ -5,6 +5,10 @@ function generateId() {
 let nodes = {};
 let backlinks = {};
 
+function getNode(id) {
+    return nodes[id];
+}
+
 // Loads a node into the graph and add backlinks
 function setNode(id, node) {
     if (node.id !== id) { throw 'mismatched node ID'; }
@@ -92,9 +96,14 @@ application = {...application};
 document.title = application.title;
 
 let imports = {
-    backlinks,
     nodes,
+    backlinks,
 };
+for (let name in application.imports) {
+    let url = application.imports[name];
+    let node = getNode(url);
+    imports[name] = node;
+}
 
 if (application.init) {
     application.init(imports);
