@@ -132,9 +132,13 @@ let builtins = {
         },
         init(imports) {
             imports.vue.setAppHtml(`
+                <div>
+                    <h3>Search</h3>
+                    Type: <input v-model="searchType">
+                </div>
                 <h3>Nodes</h3>
                 <ul>
-                    <li v-for="node in nodes" :id="node.id">
+                    <li v-for="node in nodes" v-if="searchMatches(node)" :id="node.id">
                         <a v-if="node.type === 'builtin://Application'"
                             :href='"./?app=" + node.id'>
                             <b>{{node.id}}</b>
@@ -166,11 +170,21 @@ let builtins = {
                 </ul>
             `);
 
-            let app = imports.vue.newApp({
+            // Because we reference app in the rendering template before newApp
+            // can return, we can't just use `let app = ...`
+            // see: https://github.com/sveltejs/svelte/issues/3234
+            let app;
+            app = imports.vue.newApp({
                 el: '#app',
                 data: {
+                    searchType: '',
                     backlinks: imports.backlinks,
                     nodes: imports.nodes,
+                },
+                methods: {
+                    searchMatches(node) {
+                        return app && node.type.toLowerCase().indexOf(app.searchType.toLowerCase()) >= 0;
+                    },
                 },
             });
         },
