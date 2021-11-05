@@ -112,15 +112,17 @@ let builtins = {
     // Libraries
     'builtin://VueApp': {
         type: 'builtin://Library',
-        setAppHtml(html) {
-            document.getElementById('app').innerHTML = html;
-        },
-        newApp(params) {
-            return new Vue(params);
-        },
-        component(name, params) {
-            return Vue.component(name, params);
-        }
+        code: `return {
+            setAppHtml(html) {
+                document.getElementById('app').innerHTML = html;
+            },
+            newApp(params) {
+                return new Vue(params);
+            },
+            component(name, params) {
+                return Vue.component(name, params);
+            },
+        };`,
     },
     
     // Applications

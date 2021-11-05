@@ -89,7 +89,6 @@ window.addEventListener('storage', (event) => {
     };
 });
 
-
 let urlParams = new URLSearchParams(window.location.search);
 let application = nodes[urlParams.get('app')] || nodes['builtin://node-viewer'];
 application = {...application};
@@ -102,7 +101,8 @@ let imports = {
 for (let name in application.imports) {
     let url = application.imports[name];
     let node = getNode(url);
-    imports[name] = node;
+    let resource = new Function(node.code)();
+    imports[name] = resource;
 }
 
 if (application.init) {
