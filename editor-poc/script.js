@@ -90,23 +90,27 @@ window.addEventListener('storage', (event) => {
 });
 
 let urlParams = new URLSearchParams(window.location.search);
-let application = nodes[urlParams.get('app')] || nodes['builtin://node-viewer'];
-application = {...application};
-document.title = application.title;
+let applicationNode = nodes[urlParams.get('app')] || nodes['builtin://node-viewer'];
+document.title = applicationNode.title;
 
-let imports = {
-    nodes,
-    backlinks,
-};
-for (let name in application.imports) {
-    let url = application.imports[name];
-    let node = getNode(url);
-    let resource = new Function(node.code)();
-    imports[name] = resource;
+function loadResource(node) {
+    let imports = {
+        nodes,
+        backlinks,
+    };
+    for (let name in node.imports) {
+        let url = node.imports[name];
+        let dep = getNode(url);
+        let resource = loadResource(dep);
+        imports[name] = resource;
+    }
+    return new Function('imports', node.code)(imports);
 }
 
+let application = loadResource(applicationNode);
+
 if (application.init) {
-    application.init(imports);
+    application.init();
 }
 
 if (application.update) {
