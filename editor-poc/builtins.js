@@ -155,64 +155,66 @@ let builtins = {
         imports: {
             vue: 'builtin://VueApp',
         },
-        init(imports) {
-            imports.vue.setAppHtml(`
-                <div>
-                    <h3>Search</h3>
-                    Type: <input v-model="searchType">
-                </div>
-                <h3>Nodes</h3>
-                <ul>
-                    <li v-for="node in nodes" v-if="searchMatches(node)" :id="node.id">
-                        <a v-if="node.type === 'builtin://Application'"
-                            :href='"./?app=" + node.id'>
-                            <b>{{node.id}}</b>
-                        </a>
-                        <b v-else>{{node.id}}</b>
-                        - {{node.type}}
-                        <ul>
-                        <li v-if="node.links.length > 0">
-                            Links
+        code: `return {
+            init() {
+                imports.vue.setAppHtml(\`
+                    <div>
+                        <h3>Search</h3>
+                        Type: <input v-model="searchType">
+                    </div>
+                    <h3>Nodes</h3>
+                    <ul>
+                        <li v-for="node in nodes" v-if="searchMatches(node)" :id="node.id">
+                            <a v-if="node.type === 'builtin://Application'"
+                                :href='"./?app=" + node.id'>
+                                <b>{{node.id}}</b>
+                            </a>
+                            <b v-else>{{node.id}}</b>
+                            - {{node.type}}
                             <ul>
-                            <li v-for="link in node.links">
-                                <a :href="'#' + link">{{link}}</a>
+                            <li v-if="node.links.length > 0">
+                                Links
+                                <ul>
+                                <li v-for="link in node.links">
+                                    <a :href="'#' + link">{{link}}</a>
+                                </li>
+                                </ul>
+                            </li>
+                            <li v-if="backlinks[node.id].length > 0">
+                                Backlinks
+                                <ul>
+                                <li v-for="link in backlinks[node.id]">
+                                    <a :href="'#' + link">{{link}}</a>
+                                </li>
+                                </ul>
+                            </li>
+                            <li v-for="type, key in nodes[node.type].fields">
+                                {{key}}: {{node[key]}}
                             </li>
                             </ul>
                         </li>
-                        <li v-if="backlinks[node.id].length > 0">
-                            Backlinks
-                            <ul>
-                            <li v-for="link in backlinks[node.id]">
-                                <a :href="'#' + link">{{link}}</a>
-                            </li>
-                            </ul>
-                        </li>
-                        <li v-for="type, key in nodes[node.type].fields">
-                            {{key}}: {{node[key]}}
-                        </li>
-                        </ul>
-                    </li>
-                </ul>
-            `);
+                    </ul>
+                \`);
 
-            // Because we reference app in the rendering template before newApp
-            // can return, we can't just use `let app = ...`
-            // see: https://github.com/sveltejs/svelte/issues/3234
-            let app;
-            app = imports.vue.newApp({
-                el: '#app',
-                data: {
-                    searchType: '',
-                    backlinks: imports.backlinks,
-                    nodes: imports.nodes,
-                },
-                methods: {
-                    searchMatches(node) {
-                        return app && node.type.toLowerCase().indexOf(app.searchType.toLowerCase()) >= 0;
+                // Because we reference app in the rendering template before newApp
+                // can return, we can't just use 'let app = ...'
+                // see: https://github.com/sveltejs/svelte/issues/3234
+                let app;
+                app = imports.vue.newApp({
+                    el: '#app',
+                    data: {
+                        searchType: '',
+                        backlinks: imports.backlinks,
+                        nodes: imports.nodes,
                     },
-                },
-            });
-        },
+                    methods: {
+                        searchMatches(node) {
+                            return app && node.type.toLowerCase().indexOf(app.searchType.toLowerCase()) >= 0;
+                        },
+                    },
+                });
+            },
+        };`,
     },
     'builtin://teeter': {
         type: 'builtin://Application',
@@ -220,95 +222,97 @@ let builtins = {
         imports: {
             vue: 'builtin://VueApp',
         },
-        init(imports) {
-            imports.vue.setAppHtml(`
-                <h3>Teeter</h3>
-                <ul>
-                <teet v-for="node in nodes"
-                    v-if="node.type === 'builtin://Teet' && node.parent === null"
-                    :node="node"
-                    :nodes="nodes"
-                    :selected="selected"
-                    :key="node.id"
-                    @select="select($event)"
-                    @publish="publish($event)"
-                ></teet>
-                <teet-writer v-if="selected === null"
-                    @publish="publish($event)"
-                ></teet-writer>
-                </ul>
-            `);
+        code: `return {
+            init() {
+                imports.vue.setAppHtml(\`
+                    <h3>Teeter</h3>
+                    <ul>
+                    <teet v-for="node in nodes"
+                        v-if="node.type === 'builtin://Teet' && node.parent === null"
+                        :node="node"
+                        :nodes="nodes"
+                        :selected="selected"
+                        :key="node.id"
+                        @select="select($event)"
+                        @publish="publish($event)"
+                    ></teet>
+                    <teet-writer v-if="selected === null"
+                        @publish="publish($event)"
+                    ></teet-writer>
+                    </ul>
+                \`);
 
-            imports.vue.component('teet-writer', {
-                data() {
-                    return {
-                        message: '',
-                    };
-                },
-                template:
-                    `<div>
-                        <textarea v-model="message"></textarea>
-                        <button @click="$emit('publish', message)">Publish</button>
-                    </div>`,
-            });
-            imports.vue.component('teet', {
-                props: ['node', 'nodes', 'selected'],
-                template: 
-                    `<li>
-                        {{node.description}}
-                        <button @click="$emit('select', node)">Reply</button>
-                        <ul>
-                            <teet v-for="child in nodes"
-                                v-if="child.type === 'builtin://Teet' && child.parent === node.id"
-                                :node="child"
-                                :nodes="nodes"
-                                :selected="selected"
-                                :key="child.id"
-                                @select="$emit('select', $event)"
-                                @publish="$emit('publish', $event)"
-                            ></teet>
-                            <teet-writer v-if="selected === node"
-                                @publish="$emit('publish', $event)"
-                            ></teet-writer>
-                        </ul>
-                    </li>`,
-            });
-
-            let app = imports.vue.newApp({
-                el: '#app',
-                data: {
-                    backlinks: imports.backlinks,
-                    nodes: imports.nodes,
-                    message: '',
-                    selected: null,
-                },
-                methods: {
-                    select(item) {
-                        if (app.selected === item) {
-                            app.selected = null;
-                        } else {
-                            app.selected = item;
-                        }
-                    },
-                    publish(text) {
-                        let parent = app.selected && app.selected.id;
-                        let node = {
-                            // Generic properties
-                            id: generateId(),
-                            type: 'builtin://Teet',
-                            links: parent ? [parent] : [],
-            
-                            // Note-specific properties
-                            description: text,
-                            parent,
+                imports.vue.component('teet-writer', {
+                    data() {
+                        return {
+                            message: '',
                         };
-                        app.message = '';
-                        app.selected = null;
-                        saveNode(node.id, node);
                     },
-                },
-            });
-        },
+                    template:
+                        \`<div>
+                            <textarea v-model="message"></textarea>
+                            <button @click="$emit('publish', message)">Publish</button>
+                        </div>\`,
+                });
+                imports.vue.component('teet', {
+                    props: ['node', 'nodes', 'selected'],
+                    template:
+                        \`<li>
+                            {{node.description}}
+                            <button @click="$emit('select', node)">Reply</button>
+                            <ul>
+                                <teet v-for="child in nodes"
+                                    v-if="child.type === 'builtin://Teet' && child.parent === node.id"
+                                    :node="child"
+                                    :nodes="nodes"
+                                    :selected="selected"
+                                    :key="child.id"
+                                    @select="$emit('select', $event)"
+                                    @publish="$emit('publish', $event)"
+                                ></teet>
+                                <teet-writer v-if="selected === node"
+                                    @publish="$emit('publish', $event)"
+                                ></teet-writer>
+                            </ul>
+                        </li>\`,
+                });
+
+                let app = imports.vue.newApp({
+                    el: '#app',
+                    data: {
+                        backlinks: imports.backlinks,
+                        nodes: imports.nodes,
+                        message: '',
+                        selected: null,
+                    },
+                    methods: {
+                        select(item) {
+                            if (app.selected === item) {
+                                app.selected = null;
+                            } else {
+                                app.selected = item;
+                            }
+                        },
+                        publish(text) {
+                            let parent = app.selected && app.selected.id;
+                            let node = {
+                                // Generic properties
+                                id: generateId(),
+                                type: 'builtin://Teet',
+                                links: parent ? [parent] : [],
+                
+                                // Note-specific properties
+                                description: text,
+                                parent,
+                            };
+                            app.message = '';
+                            app.selected = null;
+                            saveNode(node.id, node);
+                        },
+                    },
+                });
+            },
+        };`,
     },
     'builtin://glowy-sun': {
         type: 'builtin://Application',
