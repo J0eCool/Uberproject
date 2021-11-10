@@ -1,9 +1,11 @@
+"use strict";
+
 function generateId() {
     return crypto.randomUUID();
 }
 
-let nodes = {};
-let backlinks = {};
+const nodes = {};
+const backlinks = {};
 
 function getNode(id) {
     return nodes[id];
@@ -31,6 +33,21 @@ function setNode(id, node) {
     }
 }
 
+// Loads a Node into the runtime structure, Resource
+function loadResource(node) {
+    let imports = {
+        nodes,
+        backlinks,
+    };
+    for (let name in node.imports) {
+        let url = node.imports[name];
+        let dep = getNode(url);
+        let resource = loadResource(dep);
+        imports[name] = resource;
+    }
+    return new Function('imports', '"use strict";\n' +node.code)(imports);
+}
+
 // Initialize builtin nodes
 for (let id in builtins) {
     setNode(id, builtins[id]);
@@ -38,14 +55,14 @@ for (let id in builtins) {
 
 // Initialize IndexedDB
 let idb;
-let idbRequest = indexedDB.open('NodeDB', 1);
+const idbRequest = indexedDB.open('NodeDB', 1);
 idbRequest.onerror = (event) => {
     console.error('IDB Initialization Error:', event);
     throw 'Failed to initialize IndexedDB';
 };
 idbRequest.onupgradeneeded = (event) => {
     idb = event.target.result;
-    let nodeStore = idb.createObjectStore('nodes', { keyPath: 'id' });
+    const nodeStore = idb.createObjectStore('nodes', { keyPath: 'id' });
     nodeStore.createIndex('type', 'type', { unique: false });
 };
 idbRequest.onsuccess = (event) => {
@@ -54,8 +71,14 @@ idbRequest.onsuccess = (event) => {
         console.error('IDB Error:', event);
     };
 
+    // Filthy hack to force a Vue update on an empty DB, for initial load
+    // This isn't needed when we're loading actual data, because the setNode
+    // calls trigger these Vue updates anyway
+    // My theory is that this is timing related... and I can't be arsed atm
+    Vue.set(nodes['builtin://Any'], '_dummy', 0);
+
     // Read all existing node data into memory
-    let store = idb.transaction('nodes').objectStore('nodes');
+    const store = idb.transaction('nodes').objectStore('nodes');
     store.openCursor().onsuccess = (event) => {
         let cursor = event.target.result;
         if (cursor) {
@@ -92,20 +115,6 @@ window.addEventListener('storage', (event) => {
 let urlParams = new URLSearchParams(window.location.search);
 let applicationNode = nodes[urlParams.get('app')] || nodes['builtin://node-viewer'];
 document.title = applicationNode.title;
-
-function loadResource(node) {
-    let imports = {
-        nodes,
-        backlinks,
-    };
-    for (let name in node.imports) {
-        let url = node.imports[name];
-        let dep = getNode(url);
-        let resource = loadResource(dep);
-        imports[name] = resource;
-    }
-    return new Function('imports', node.code)(imports);
-}
 
 let application = loadResource(applicationNode);
 

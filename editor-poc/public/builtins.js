@@ -1,5 +1,6 @@
+
 // Initialize nodes with all the builtin types and applications
-let builtins = {
+const builtins = {
     // Primitive types (no type imports)
     'builtin://Any': {
         type: 'builtin://Type',
