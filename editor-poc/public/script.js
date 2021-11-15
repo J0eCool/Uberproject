@@ -35,17 +35,20 @@ function setNode(id, node) {
 
 // Loads a Node into the runtime structure, Resource
 function loadResource(node) {
-    let imports = {
-        nodes,
-        backlinks,
-    };
+    let imports = {};
     for (let name in node.imports) {
         let url = node.imports[name];
         let dep = getNode(url);
-        let resource = loadResource(dep);
-        imports[name] = resource;
+        let res = loadResource(dep);
+        imports[name] = res;
     }
-    return new Function('imports', '"use strict";\n' +node.code)(imports);
+    let resource = new Function('imports', '"use strict";\n' + node.code)(imports);
+    // magic for builtin nodes to have access to things
+    if (node.id === 'builtin://Graph') {
+        resource.nodes = nodes;
+        resource.backlinks = backlinks;
+    }
+    return resource;
 }
 
 // Initialize builtin nodes

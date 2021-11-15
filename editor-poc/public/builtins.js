@@ -95,22 +95,38 @@ const builtins = {
     // Below this line, these are samples that aren't part of the syscall layer
     // Well the default NodeViewer probably needs to be built in to bootstrap lol
 
-    // Types for sample apps
-    'builtin://Teet': {
-        type: 'builtin://Type',
-        name: 'Teet',
-        fields: {
-            description: 'String',
-            parent: 'Teet',
-        },
-        methods: {},
-        types: {
-            String: ['import', 'builtin://String'],
-            Teet: ['self'],
-        },
-    },
-
     // Libraries
+    'builtin://Graph': {
+        type: 'builtin://Library',
+        code: `return {
+            // Magic: this.nodes and this.backlinks gets set by the kernel
+
+            // A list of all the nodes
+            getNodes() {
+                // todo: figure out whether we want to return Dict<URL, Node>
+                return this.nodes;
+
+                // todo: or just Array<Node>
+                // let ret = [];
+                // for (let node of Object.values(this.nodes)) {
+                //     ret.push(node);
+                // }
+                // return ret;
+            },
+
+            // A list of all nodes matching a specific type
+            // URL -> Array<Node>
+            getNodesOfType(ty) {
+                throw 'unimplemented';
+            },
+
+            getBacklinks() {
+                return this.backlinks;
+            },
+
+            // todo: getnode/setnode should live here?
+        };`,
+    },
     'builtin://VueApp': {
         type: 'builtin://Library',
         code: `return {
@@ -149,11 +165,15 @@ const builtins = {
         };`,
     },
     
+    //-----------------------
     // Applications
+
+    // Node viewer - inspect every node in the graph
     'builtin://node-viewer': {
         type: 'builtin://Application',
         title: 'Node Viewer',
         imports: {
+            graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
         code: `return {
@@ -205,8 +225,8 @@ const builtins = {
                     el: '#app',
                     data: {
                         searchType: '',
-                        backlinks: imports.backlinks,
-                        nodes: imports.nodes,
+                        backlinks: imports.graph.getBacklinks(),
+                        nodes: imports.graph.getNodes(),
                     },
                     methods: {
                         searchMatches(node) {
@@ -217,10 +237,26 @@ const builtins = {
             },
         };`,
     },
+
+    // Teeter - threaded messages with replies, little else
+    'builtin://Teet': {
+        type: 'builtin://Type',
+        name: 'Teet',
+        fields: {
+            description: 'String',
+            parent: 'Teet',
+        },
+        methods: {},
+        types: {
+            String: ['import', 'builtin://String'],
+            Teet: ['self'],
+        },
+    },
     'builtin://teeter': {
         type: 'builtin://Application',
         title: 'Teeter App',
         imports: {
+            graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
         code: `return {
@@ -281,8 +317,8 @@ const builtins = {
                 let app = imports.vue.newApp({
                     el: '#app',
                     data: {
-                        backlinks: imports.backlinks,
-                        nodes: imports.nodes,
+                        backlinks: imports.graph.getBacklinks(),
+                        nodes: imports.graph.getNodes(),
                         message: '',
                         selected: null,
                     },
@@ -315,6 +351,8 @@ const builtins = {
             },
         };`,
     },
+
+    // Glowy Sun - Canvas demo to show graphical applications
     'builtin://glowy-sun': {
         type: 'builtin://Application',
         title: 'A glowy sun',
@@ -397,6 +435,9 @@ const builtins = {
             },
         };`,
     },
+
+    // FileMap - sets up bidirectional linking between files on the user's native
+    // filesystem, and nodes in the graph
     'builtin://file-mapping': {
         type: 'builtin://Application',
         title: 'FileMap',
