@@ -397,6 +397,84 @@ const builtins = {
             },
         };`,
     },
+    'builtin://file-mapping': {
+        type: 'builtin://Application',
+        title: 'FileMap',
+        imports: {
+            vue: 'builtin://VueApp',
+        },
+        code: `return {
+            init() {
+                imports.vue.setAppHtml(\`
+                    <h3>Watching Directory: {{dirName}}</h3>
+                    <div>
+                        <button @click="selectDir()">Select folder</button>
+                    </div>
+                    <ul>
+                        <li v-for="file in files" :id="file.path">
+                            <div v-if="file !== selectedFile" @click="expand(file)">
+                                {{ file.path }}
+                            </div>
+                            <div v-else>
+                                <div><b>{{ file.path }}</b></div>
+                                <div>{{selectedText}}</div>
+                            </div>
+                        </li>
+                    </ul>
+                \`);
+
+                // Iterates over every file in a directory and 
+                async function walkDir(dir, f) {
+                    for await (let file of dir.values()) {
+                        if (file.kind === 'directory') {
+                            await walkDir(file, f);
+                        } else {
+                            await f(file);
+                        }
+                    }
+                }
+
+                let app = imports.vue.newApp({
+                    el: '#app',
+                    data: {
+                        dirHandle: null,
+                        dirName: "(null)",
+                        files: {},
+                        selectedFile: null,
+                        selectedText: "",
+                    },
+                    methods: {
+                        selectDir() {
+                            let numFiles = 0;
+                            window.showDirectoryPicker().then(async (dir) => {
+                                app.dirHandle = dir;
+                                app.dirName = dir.name;
+                                let t0 = performance.now();
+                                await walkDir(dir, async (file) => {
+                                    numFiles++;
+                                    let path = (await app.dirHandle.resolve(file)).join('/');
+                                    Vue.set(app.files, path, {
+                                        handle: file,
+                                        name: file.name,
+                                        path,
+                                    });
+                                });
+                                console.log('time to sync', numFiles, 'files:',
+                                    (performance.now() - t0)/1000);
+                            });
+                        },
+                        expand(file) {
+                            app.selectedFile = file;
+                            file.handle.getFile().then(async (f) => {
+                                let text = await f.text();
+                                app.selectedText = text;
+                            });
+                        },
+                    },
+                });
+            },
+        };`,
+    },
 };
 
 // Initialize any un-set fields that all Nodes need
