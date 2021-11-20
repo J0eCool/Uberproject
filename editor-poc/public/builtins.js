@@ -238,23 +238,23 @@ const builtins = {
         };`,
     },
 
-    // Teeter - threaded messages with replies, little else
-    'builtin://Teet': {
+    // Tooter - threaded messages with replies, little else
+    'builtin://Toot': {
         type: 'builtin://Type',
-        name: 'Teet',
+        name: 'Toot',
         fields: {
             description: 'String',
-            parent: 'Teet',
+            parent: 'Toot',
         },
         methods: {},
         types: {
             String: ['import', 'builtin://String'],
-            Teet: ['self'],
+            Toot: ['self'],
         },
     },
-    'builtin://teeter': {
+    'builtin://tooter': {
         type: 'builtin://Application',
-        title: 'Teeter App',
+        title: 'Tooter App',
         imports: {
             graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
@@ -262,24 +262,24 @@ const builtins = {
         code: `return {
             init() {
                 imports.vue.setAppHtml(\`
-                    <h3>Teeter</h3>
+                    <h3>Tooter</h3>
                     <ul>
-                    <teet v-for="node in nodes"
-                        v-if="node.type === 'builtin://Teet' && node.parent === null"
+                    <toot v-for="node in nodes"
+                        v-if="node.type === 'builtin://Toot' && node.parent === null"
                         :node="node"
                         :nodes="nodes"
                         :selected="selected"
                         :key="node.id"
                         @select="select($event)"
                         @publish="publish($event)"
-                    ></teet>
-                    <teet-writer v-if="selected === null"
+                    ></toot>
+                    <toot-writer v-if="selected === null"
                         @publish="publish($event)"
-                    ></teet-writer>
+                    ></toot-writer>
                     </ul>
                 \`);
 
-                imports.vue.component('teet-writer', {
+                imports.vue.component('toot-writer', {
                     data() {
                         return {
                             message: '',
@@ -291,25 +291,25 @@ const builtins = {
                             <button @click="$emit('publish', message)">Publish</button>
                         </div>\`,
                 });
-                imports.vue.component('teet', {
+                imports.vue.component('toot', {
                     props: ['node', 'nodes', 'selected'],
                     template:
                         \`<li>
                             {{node.description}}
                             <button @click="$emit('select', node)">Reply</button>
                             <ul>
-                                <teet v-for="child in nodes"
-                                    v-if="child.type === 'builtin://Teet' && child.parent === node.id"
+                                <toot v-for="child in nodes"
+                                    v-if="child.type === 'builtin://Toot' && child.parent === node.id"
                                     :node="child"
                                     :nodes="nodes"
                                     :selected="selected"
                                     :key="child.id"
                                     @select="$emit('select', $event)"
                                     @publish="$emit('publish', $event)"
-                                ></teet>
-                                <teet-writer v-if="selected === node"
+                                ></toot>
+                                <toot-writer v-if="selected === node"
                                     @publish="$emit('publish', $event)"
-                                ></teet-writer>
+                                ></toot-writer>
                             </ul>
                         </li>\`,
                 });
@@ -335,7 +335,7 @@ const builtins = {
                             let node = {
                                 // Generic properties
                                 id: generateId(),
-                                type: 'builtin://Teet',
+                                type: 'builtin://Toot',
                                 links: parent ? [parent] : [],
                 
                                 // Note-specific properties
