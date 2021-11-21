@@ -168,6 +168,40 @@ const builtins = {
     //-----------------------
     // Applications
 
+    // Launcher - Simple launcher for Applications
+    'builtin://launcher': {
+        type: 'builtin://Application',
+        title: 'Launcher',
+        imports: {
+            graph: 'builtin://Graph',
+            vue: 'builtin://VueApp',
+        },
+        code: `return {
+            init() {
+                imports.vue.setAppHtml(\`
+                    <h3>Application List</h3>
+                    <ul>
+                        <li v-for="node in nodes"
+                            v-if="node.type === 'builtin://Application'"
+                            :id="node.id">
+                            <a :href='"./?app=" + node.id'>
+                                <b>{{node.title}}</b>
+                            </a>
+                        </li>
+                    </ul>
+                \`);
+
+                let app = imports.vue.newApp({
+                    el: '#app',
+                    data: {
+                        searchType: '',
+                        nodes: imports.graph.getNodes(),
+                    },
+                });
+            },
+        };`,
+    },
+
     // Node viewer - inspect every node in the graph
     'builtin://node-viewer': {
         type: 'builtin://Application',
@@ -509,6 +543,39 @@ const builtins = {
                             file.handle.getFile().then(async (f) => {
                                 let text = await f.text();
                                 app.selectedText = text;
+                            });
+                        },
+                    },
+                });
+            },
+        };`,
+    },
+
+    // tweet.js Uploader - parses a tweet.json
+    'builtin://tweet-js-upload': {
+        type: 'builtin://Application',
+        title: 'tweet.js Uploader',
+        imports: {
+            vue: 'builtin://VueApp',
+        },
+        code: `return {
+            init() {
+                imports.vue.setAppHtml(\`
+                    <h3>Upload your tweet.js</h3>
+                    <button @click="openTweetJS()">Select tweet.js</button>
+                \`);
+
+                let app = imports.vue.newApp({
+                    el: '#app',
+                    data: {},
+                    methods: {
+                        openTweetJS() {
+                            showOpenFilePicker({
+                                types: [{accept: {'text/javascript': ['.js']}}]
+                            }).then(async ([file]) => {
+                                let f = await file.getFile();
+                                let text = await f.text();
+                                console.log('tweet.js length=', text.length);
                             });
                         },
                     },

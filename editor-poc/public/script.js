@@ -116,7 +116,7 @@ window.addEventListener('storage', (event) => {
 });
 
 let urlParams = new URLSearchParams(window.location.search);
-let applicationNode = nodes[urlParams.get('app')] || nodes['builtin://node-viewer'];
+let applicationNode = nodes[urlParams.get('app')] || nodes['builtin://launcher'];
 document.title = applicationNode.title;
 
 let application = loadResource(applicationNode);
