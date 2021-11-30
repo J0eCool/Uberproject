@@ -92,18 +92,27 @@ idbRequest.onsuccess = (event) => {
 };
 
 // Adds a node into the graph and also persists it in storage
-function saveNode(id, node) {
-    setNode(id, node);
+function saveNodes(nodes) {
+    for (let node of nodes) {
+        setNode(node.id, node);
+    }
 
     let trans = idb.transaction(['nodes'], 'readwrite');
     trans.onerror = (event) => {
         console.error('IDB Transaction Error:', event);
     };
     let store = trans.objectStore('nodes');
-    store.add(node);
+    for (let node of nodes) {
+        store.add(node);
 
-    // Trigger a storage event to update other tabs
-    localStorage.setItem(id, Date.now());
+        // Trigger a storage event to update other tabs
+        localStorage.setItem(node.id, Date.now());
+    }
+}
+function saveNode(id, node) {
+    if (node.id !== id) { throw 'no stahp'; }
+    node.id = id;
+    saveNodes([node]);
 }
 
 // Setup storage event listener to sync with edits in other tabs

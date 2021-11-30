@@ -10,6 +10,14 @@ const builtins = {
         methods: {},
         types: {},
     },
+    'builtin://Float': {
+        type: 'builtin://Type',
+        name: 'Float',
+        params: [],
+        fields: {},
+        methods: {},
+        types: {},
+    },
     'builtin://String': {
         type: 'builtin://Type',
         name: 'String',
@@ -122,6 +130,17 @@ const builtins = {
 
             getBacklinks() {
                 return this.backlinks;
+            },
+
+            saveNodes(nodes) {
+                for (let node of nodes) {
+                    let id = generateId();
+                    if (this.nodes[id]) {
+                        console.warn('overwriting:', this.nodes[id], 'with', node, '!');
+                    }
+                    node.id = id;
+                }
+                saveNodes(nodes);
             },
 
             // todo: getnode/setnode should live here?
@@ -496,6 +515,17 @@ const builtins = {
                             </div>
                         </li>
                     </ul>
+                    <div>
+                        This application will someday bidirectionally sync graph
+                        data with a folder in the native filesystem. The idea is
+                        that there will be multiple FileSync plugins that parse
+                        a raw File into user-specified types, and vice-versa to
+                        support native file interop, allowing this system to be
+                        used for real work without having to go all-in on it.
+                        <br>
+                        For now all it does is bulk-import all .md files in a
+                        folder into WikiPage nodes, one-way.
+                    </div>
                 \`);
 
                 // Iterates over every file in a directory and 
@@ -551,31 +581,100 @@ const builtins = {
         };`,
     },
 
+    // Tweet applications
+    'builtin://Tweet': {
+        type: 'builtin://Type',
+        name: 'Tweet',
+        fields: {
+            tweetId: 'String',
+            time: 'Time',
+            text: 'String',
+            user: 'String',
+            replyId: 'String',
+        },
+        methods: {},
+        types: {
+            String: ['import', 'builtin://String'],
+            Time: ['import', 'builtin://Float'],
+            Tweet: ['self'],
+        },
+    },
     // tweet.js Uploader - parses a tweet.json
     'builtin://tweet-js-upload': {
         type: 'builtin://Application',
         title: 'tweet.js Uploader',
         imports: {
+            graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
         code: `return {
             init() {
                 imports.vue.setAppHtml(\`
                     <h3>Upload your tweet.js</h3>
+                    <div>{{ status }}</div>
+                    <div>
+                        Username: <input v-model="username">
+                    </div>
                     <button @click="openTweetJS()">Select tweet.js</button>
+                    <div>
+                        This application is a bulk-upload of tweets from a Twitter
+                        archive file, saved as tweet.js.
+                        <br>
+                        Currently you need to manually specify the username,
+                        because that's not directly present in tweet.js.
+                        <br>
+                        In the future, this could use the entire archive to upload
+                        images and other media. For now it just grabs the text of
+                        your tweets. (This would also make it possible to automatically
+                        fill in your username.)
+                    </div>
                 \`);
 
                 let app = imports.vue.newApp({
                     el: '#app',
-                    data: {},
+                    data: {
+                        username: "",
+                        status: "",
+                    },
                     methods: {
                         openTweetJS() {
+                            if (!app.username) {
+                                app.status = 'Error: Need to manually set user name!';
+                                return;
+                            }
                             showOpenFilePicker({
                                 types: [{accept: {'text/javascript': ['.js']}}]
                             }).then(async ([file]) => {
                                 let f = await file.getFile();
                                 let text = await f.text();
-                                console.log('tweet.js length=', text.length);
+                                let [_, body] = text.split('window.YTD.tweet.part0 = ');
+                                if (!body) {
+                                    app.status = 'Error: unknown formatting in tweet.js';
+                                    throw 'parse error';
+                                }
+
+                                let rawTweets = JSON.parse(body);
+                                let tweets = [];
+                                for (let i = 0; i < rawTweets.length; ++i) {
+                                    let raw = rawTweets[i]['tweet'];
+                                    let tweet = {
+                                        type: 'builtin://Tweet',
+                                        links: [],
+
+                                        tweetId: raw['id'],
+                                        time: Date.parse(raw['created_at']),
+                                        text: raw['full_text'],
+                                        user: app.username,
+                                        replyId: raw['in_reply_to_status_id'] || '',
+                                    };
+                                    tweets.push(tweet);
+                                    
+                                    if ((i % 100) === 0) {
+                                        app.status = \`Loading \${i+1} / \${rawTweets.length}...\`;
+                                    }
+                                }
+                                imports.graph.saveNodes(tweets);
+                                app.status = \`Loaded \${rawTweets.length} Tweets!\`;
                             });
                         },
                     },
