@@ -74,12 +74,6 @@ idbRequest.onsuccess = (event) => {
         console.error('IDB Error:', event);
     };
 
-    // Filthy hack to force a Vue update on an empty DB, for initial load
-    // This isn't needed when we're loading actual data, because the setNode
-    // calls trigger these Vue updates anyway
-    // My theory is that this is timing related... and I can't be arsed atm
-    Vue.set(nodes['builtin://Any'], '_dummy', 0);
-
     // Read all existing node data into memory
     const store = idb.transaction('nodes').objectStore('nodes');
     store.openCursor().onsuccess = (event) => {
@@ -87,6 +81,15 @@ idbRequest.onsuccess = (event) => {
         if (cursor) {
             setNode(cursor.key, cursor.value);
             cursor.continue();
+        } else {
+            startApplication();
+
+            // Filthy hack to force a Vue update on an empty DB, for initial load
+            // This seems to only matter for the Node Viewer app... idk what it's deal is
+            // My theory is that this is timing related... and I can't be arsed atm
+            setTimeout(() => {
+                Vue.set(nodes['builtin://Any'], '_dummy', 0);
+            }, 10);
         }
     };
 };
@@ -124,20 +127,22 @@ window.addEventListener('storage', (event) => {
     };
 });
 
-let urlParams = new URLSearchParams(window.location.search);
-let applicationNode = nodes[urlParams.get('app')] || nodes['builtin://launcher'];
-document.title = applicationNode.title;
+function startApplication() {
+    let urlParams = new URLSearchParams(window.location.search);
+    let applicationNode = nodes[urlParams.get('app')] || nodes['builtin://launcher'];
+    document.title = applicationNode.title;
 
-let application = loadResource(applicationNode);
+    let application = loadResource(applicationNode);
 
-if (application.init) {
-    application.init();
-}
+    if (application.init) {
+        application.init();
+    }
 
-if (application.update) {
-    function frame() {
-        application.update();
+    if (application.update) {
+        function frame() {
+            application.update();
+            requestAnimationFrame(frame);
+        }
         requestAnimationFrame(frame);
     }
-    requestAnimationFrame(frame);
 }
