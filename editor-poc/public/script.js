@@ -139,8 +139,12 @@ function startApplication() {
     }
 
     if (application.update) {
+        let t0 = Date.now();
         function frame() {
-            application.update();
+            let t = Date.now();
+            let dt = (t - t0) / 1000;
+            t0 = t;
+            application.update(dt);
             requestAnimationFrame(frame);
         }
         requestAnimationFrame(frame);

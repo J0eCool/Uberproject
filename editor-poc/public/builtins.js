@@ -702,44 +702,98 @@ const builtins = {
                 imports.vue.setAppHtml(\`
                     <h3>Tweet Search</h3>
                     <div>
-                        Search: <input v-model="searchText">
+                        Search: <input v-model="searchText" @input="searchChanged()">
                     </div>
-                    <ul>
-                        <li v-for="tweet in tweets" v-if="matches(tweet)">
-                            <a :href="url(tweet)">
-                                {{ new Date(tweet.time).toLocaleString() }}
-                            </a> - {{ tweet.text }}
-                        </li>
-                    </ul>
+                    <div v-if="searchResults === null">
+                        Searching...
+                    </div>
+                    <div v-else>
+                        <div>Num Results: {{numResults}}</div>
+                        <div>
+                            <button @click="searchPage--">&lt;&lt;</button>
+                            Page {{searchPage + 1}}
+                            <button @click="searchPage++">&gt;&gt;</button>
+                        </div>
+                        <ul>
+                            <li v-for="tweet in searchResults[searchPage]">
+                                <a :href="url(tweet)">{{ formatTime(tweet) }}</a>
+                                <div v-html="htmlEncode(tweet.text)"></span>
+                            </li>
+                        </ul>
+                    </div>
                 \`);
 
                 let tweets = imports.graph.getNodesOfType('builtin://Tweet');
-                let app;
-                app = imports.vue.newApp({
+                let self = this;
+                self.timeToSearch = 0.25;
+                self.resultsPerPage = 25;
+                self.searchTimer = self.timeToSearch;
+                self.app = imports.vue.newApp({
                     el: '#app',
                     data: {
                         tweets,
+                        numResults: 0,
                         searchText: 'hello',
+                        searchResults: null,
+                        searchPage: 0,
                     },
                     methods: {
-                        htmlEncode(str) {
-                            return str;
-                                // .replaceAll('&', '&amp;')
-                                // .replaceAll('<', '&lt;')
-                                // .replaceAll('>', '&gt;')
-                                // .replaceAll('"', '&quot;')
-                                // .replaceAll('\\n', '<br>')
-                                // ;
+                        searchChanged() {
+                            self.searchTimer = self.timeToSearch;
+                            self.app.searchResults = null;
+                            self.app.searchPage = 0;
                         },
-                        matches(tweet) {
-                            return app && tweet.text.toLowerCase()
-                                .indexOf(app.searchText.toLowerCase()) >= 0;
+
+                        htmlEncode(str) {
+                            return str
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll('\\n', '<br>')
+                                ;
                         },
                         url(tweet) {
                             return \`http://www.twitter.com/\${tweet.user}/status/\${tweet.tweetId}\`;
                         },
+                        formatTime(tweet) {
+                            let date = new Date(tweet.time);
+                            return date.toLocaleString();
+                        },
                     },
                 });
+            },
+
+            update(dt) {
+                
+                if (this.searchTimer <= 0) {
+                    return;
+                }
+                
+                this.searchTimer -= dt;
+                if (this.searchTimer <= 0) {
+                    this.app.searchResults = [];
+                    this.app.numResults = 0;
+                    let page = [];
+                    for (let tweet of this.app.tweets) {
+                        if (matches(tweet, this.app.searchText)) {
+                            page.push(tweet);
+                            this.app.numResults++;
+                        }
+                        if (page.length >= this.resultsPerPage) {
+                            this.app.searchResults.push(page);
+                            page = [];
+                        }
+                    }
+                    if (page || !this.app.searchResults) {
+                        this.app.searchResults.push(page);
+                    }
+                }
+
+                function matches(tweet, text) {
+                    return tweet.text.toLowerCase()
+                        .indexOf(text.toLowerCase()) >= 0;
+                }
             },
         };`,
     },
