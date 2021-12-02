@@ -704,44 +704,58 @@ const builtins = {
                     <div>
                         Search: <input v-model="searchText" @input="searchChanged()">
                     </div>
-                    <div v-if="searchResults === null">
-                        Searching...
+                    <div>Num Results: {{numResults}}</div>
+                    <div>
+                        <button @click="searchPage--">&lt;&lt;</button>
+                        Page {{searchPage + 1}}
+                        <button @click="searchPage++">&gt;&gt;</button>
                     </div>
-                    <div v-else>
-                        <div>Num Results: {{numResults}}</div>
-                        <div>
-                            <button @click="searchPage--">&lt;&lt;</button>
-                            Page {{searchPage + 1}}
-                            <button @click="searchPage++">&gt;&gt;</button>
-                        </div>
-                        <ul>
-                            <li v-for="tweet in searchResults[searchPage]">
-                                <a :href="url(tweet)">{{ formatTime(tweet) }}</a>
-                                <div v-html="htmlEncode(tweet.text)"></span>
-                            </li>
-                        </ul>
-                    </div>
+                    <ul>
+                        <li v-for="tweet in searchResults[searchPage]">
+                            <a :href="url(tweet)">{{ formatTime(tweet) }}</a>
+                            <div v-html="htmlEncode(tweet.text)"></span>
+                        </li>
+                    </ul>
                 \`);
 
                 let tweets = imports.graph.getNodesOfType('builtin://Tweet');
                 let self = this;
-                self.timeToSearch = 0.25;
                 self.resultsPerPage = 25;
-                self.searchTimer = self.timeToSearch;
                 self.app = imports.vue.newApp({
                     el: '#app',
                     data: {
                         tweets,
                         numResults: 0,
-                        searchText: 'hello',
-                        searchResults: null,
+                        searchText: '',
+                        searchResults: [[]],
                         searchPage: 0,
                     },
                     methods: {
                         searchChanged() {
-                            self.searchTimer = self.timeToSearch;
-                            self.app.searchResults = null;
                             self.app.searchPage = 0;
+                            self.app.searchResults = [];
+                            self.app.numResults = 0;
+
+                            let page = [];
+                            for (let tweet of self.app.tweets) {
+                                if (matches(tweet, self.app.searchText)) {
+                                    page.push(tweet);
+                                    self.app.numResults++;
+                                }
+                                if (page.length >= self.resultsPerPage) {
+                                    self.app.searchResults.push(page);
+                                    page = [];
+                                }
+                            }
+                            // Always add the last page (or an empty page if no results)
+                            if (page || !self.app.searchResults) {
+                                self.app.searchResults.push(page);
+                            }
+            
+                            function matches(tweet, text) {
+                                return tweet.text.toLowerCase()
+                                    .indexOf(text.toLowerCase()) >= 0;
+                            }
                         },
 
                         htmlEncode(str) {
@@ -762,38 +776,8 @@ const builtins = {
                         },
                     },
                 });
-            },
-
-            update(dt) {
-                
-                if (this.searchTimer <= 0) {
-                    return;
-                }
-                
-                this.searchTimer -= dt;
-                if (this.searchTimer <= 0) {
-                    this.app.searchResults = [];
-                    this.app.numResults = 0;
-                    let page = [];
-                    for (let tweet of this.app.tweets) {
-                        if (matches(tweet, this.app.searchText)) {
-                            page.push(tweet);
-                            this.app.numResults++;
-                        }
-                        if (page.length >= this.resultsPerPage) {
-                            this.app.searchResults.push(page);
-                            page = [];
-                        }
-                    }
-                    if (page || !this.app.searchResults) {
-                        this.app.searchResults.push(page);
-                    }
-                }
-
-                function matches(tweet, text) {
-                    return tweet.text.toLowerCase()
-                        .indexOf(text.toLowerCase()) >= 0;
-                }
+                // initialize search data
+                self.app.searchChanged();
             },
         };`,
     },
