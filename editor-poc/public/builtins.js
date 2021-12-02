@@ -125,7 +125,14 @@ const builtins = {
             // A list of all nodes matching a specific type
             // URL -> Array<Node>
             getNodesOfType(ty) {
-                throw 'unimplemented';
+                let ret = [];
+                for (let node of Object.values(this.nodes)) {
+                    // todo: subtyping :D
+                    if (node.type === ty) {
+                        ret.push(node);
+                    }
+                }
+                return ret;
             },
 
             getBacklinks() {
@@ -676,6 +683,60 @@ const builtins = {
                                 imports.graph.saveNodes(tweets);
                                 app.status = \`Loaded \${rawTweets.length} Tweets!\`;
                             });
+                        },
+                    },
+                });
+            },
+        };`,
+    },
+    // Tweet Search - simple tweet data viewer
+    'builtin://tweet-searcher': {
+        type: 'builtin://Application',
+        title: 'Tweet Search',
+        imports: {
+            graph: 'builtin://Graph',
+            vue: 'builtin://VueApp',
+        },
+        code: `return {
+            init() {
+                imports.vue.setAppHtml(\`
+                    <h3>Tweet Search</h3>
+                    <div>
+                        Search: <input v-model="searchText">
+                    </div>
+                    <ul>
+                        <li v-for="tweet in tweets" v-if="matches(tweet)">
+                            <a :href="url(tweet)">
+                                {{ new Date(tweet.time).toLocaleString() }}
+                            </a> - {{ tweet.text }}
+                        </li>
+                    </ul>
+                \`);
+
+                let tweets = imports.graph.getNodesOfType('builtin://Tweet');
+                let app;
+                app = imports.vue.newApp({
+                    el: '#app',
+                    data: {
+                        tweets,
+                        searchText: 'hello',
+                    },
+                    methods: {
+                        htmlEncode(str) {
+                            return str;
+                                // .replaceAll('&', '&amp;')
+                                // .replaceAll('<', '&lt;')
+                                // .replaceAll('>', '&gt;')
+                                // .replaceAll('"', '&quot;')
+                                // .replaceAll('\\n', '<br>')
+                                // ;
+                        },
+                        matches(tweet) {
+                            return app && tweet.text.toLowerCase()
+                                .indexOf(app.searchText.toLowerCase()) >= 0;
+                        },
+                        url(tweet) {
+                            return \`http://www.twitter.com/\${tweet.user}/status/\${tweet.tweetId}\`;
                         },
                     },
                 });
