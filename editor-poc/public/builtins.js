@@ -92,7 +92,7 @@ const builtins = {
     },
     'builtin://Library': {
         type: 'builtin://Type',
-        name: 'Type',
+        name: 'Library',
         params: [],
         fields: {},
         methods: {},
@@ -781,7 +781,159 @@ const builtins = {
             },
         };`,
     },
+
+    // "Command line"
+    'builtin://Command': {
+        type: 'builtin://Type',
+        name: 'Command',
+        params: ['args', 'results'],
+        fields: {
+            name: 'String',
+            arguments: 'ArgList',
+            returns: 'Type',
+            code: 'String',
+        },
+        methods: {
+            // TODO: figure out how to actually parameterize Commands
+            run: [['args'], ['results']],
+        },
+        types: {
+            Argument: ['tuple', 'String', 'Type'],
+            ArgList: ['import', 'builtin://Array', 'Argument'],
+            String: ['import', 'builtin://String'],
+            Type: ['import', 'builtin://Type'],
+        },
+    },
+    'builtin://command-runner': {
+        type: 'builtin://Application',
+        title: 'Command Runner',
+        imports: {
+            graph: 'builtin://Graph',
+            vue: 'builtin://VueApp',
+        },
+        code: `return {
+            init() {
+                imports.vue.setAppHtml(\`
+                    <h3>Command</h3>
+                    <command-editor
+                        :run="run"
+                        :commands="commands"
+                        :results="results"
+                        :types="types"
+                    ></command-editor>
+                    <h3>Result</h3>
+                    <ul>
+                    <li v-for="node in results">
+                        <b>{{node.id}}</b> - {{types[node.type].name}}
+                        <ul>
+                        <li v-for="type, key in types[node.type].fields">
+                            {{key}}: {{node[key]}}
+                        </li>
+                        </ul>
+                    </li>
+                    </ul>
+                \`);
+
+                imports.vue.component('command-editor', {
+                    props: ['run', 'commands', 'results', 'types'],
+                    data() {
+                        return {
+                            search: '',
+                        };
+                    },
+                    template: \`<div>
+                        <div v-if="run.command === null">
+                            <input v-model="search">
+                            <br>
+                            <button v-for="cmd in commands"
+                                v-if="cmd.name.indexOf(search) >= 0"
+                                @click="setCommand(cmd)"
+                            > {{ cmd.name }} </button>
+                        </div>
+                        <div v-else>
+                            {{run.command.name}} <button @click="setCommand(null)">x</button>
+                            <ul>
+                            <li v-for="arg in run.command.arguments">
+                                <div>{{arg[0]}}: {{types[arg[1]].name}}</div>
+                                <div v-if="isPrimitive(arg[1])">
+                                    <input v-model="run.args[arg[0]].command">
+                                </div>
+                                <command-editor v-else
+                                    :run="run.args[arg[0]]"
+                                    :commands="commands"
+                                    :results="results"
+                                    :types="types"
+                                ></command-editor>
+                            </li>
+                            </ul>
+                        </div>
+                    </div>\`,
+                    methods: {
+                        setCommand(cmd) {
+                            this.run.command = cmd;
+                            this.run.args = {};
+                            if (cmd) {
+                                for (let arg of cmd.arguments) {
+                                    this.run.args[arg[0]] = {
+                                        command: null,
+                                        args: {},
+                                    };
+                                }
+                            }
+                        },
+                        isPrimitive(ty) {
+                            return [
+                                'builtin://String',
+                                'builtin://Float',
+                            ].indexOf(ty) >= 0;
+                        },
+                    },
+                });
+
+                let commands = imports.graph.getNodesOfType('builtin://Command');
+                let typeNodes = imports.graph.getNodesOfType('builtin://Type');
+                let types = {};
+                for (let node of typeNodes) {
+                    types[node.id] = node;
+                }
+                let app = imports.vue.newApp({
+                    el: '#app',
+                    data: {
+                        run: {
+                            command: null,
+                            args: {},
+                        },
+                        commands,
+                        types,
+                        results: [],
+                    },
+                    methods: {
+                    },
+                });
+            },
+        };`,
+    },
 };
+
+// Add some Commands in a simpler way
+function addCommand(name, args, ret, code) {
+    builtins['builtin://command-' + name] = {
+        type: 'builtin://Command',
+        name,
+        arguments: args,
+        returns: ret,
+        code,
+    };
+}
+addCommand('graph', [], 'builtin://Graph', `
+    return builtins['builtin://Graph'];
+`);
+addCommand('nodes', [
+    ['graph', 'builtin://Library'],
+    ['type', 'builtin://String'],
+], 'builtin://Array', `
+    return graph.getNodesOfType(type);
+`);
 
 // Initialize any un-set fields that all Nodes need
 for (let id in builtins) {
