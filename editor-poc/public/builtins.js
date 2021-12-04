@@ -129,7 +129,7 @@ const builtins = {
                 for (let node of Object.values(this.nodes)) {
                     // todo: subtyping :D
                     if (node.type === ty) {
-                        ret.push(node);
+                        ret.push(loadResource(node));
                     }
                 }
                 return ret;
@@ -817,6 +817,7 @@ const builtins = {
                     <h3>Command</h3>
                     <command-editor
                         :run="run"
+                        :expected-type="'builtin://Any'"
                         :commands="commands"
                         :results="results"
                         :types="types"
@@ -835,7 +836,7 @@ const builtins = {
                 \`);
 
                 imports.vue.component('command-editor', {
-                    props: ['run', 'commands', 'results', 'types'],
+                    props: ['run', 'expectedType', 'commands', 'results', 'types'],
                     data() {
                         return {
                             search: '',
@@ -843,12 +844,12 @@ const builtins = {
                     },
                     template: \`<div>
                         <div v-if="run.command === null">
-                            <input v-model="search">
-                            <br>
                             <button v-for="cmd in commands"
-                                v-if="cmd.name.indexOf(search) >= 0"
+                                v-if="(expectedType === 'builtin://Any' || cmd.returns === expectedType) && cmd.name.indexOf(search) >= 0"
                                 @click="setCommand(cmd)"
                             > {{ cmd.name }} </button>
+                            <br>
+                            <input v-model="search">
                         </div>
                         <div v-else>
                             {{run.command.name}} <button @click="setCommand(null)">x</button>
@@ -860,12 +861,14 @@ const builtins = {
                                 </div>
                                 <command-editor v-else
                                     :run="run.args[arg[0]]"
+                                    :expected-type="arg[1]"
                                     :commands="commands"
                                     :results="results"
                                     :types="types"
                                 ></command-editor>
                             </li>
                             </ul>
+                            <button @click="execute(run)">Run</button>
                         </div>
                     </div>\`,
                     methods: {
@@ -880,12 +883,36 @@ const builtins = {
                                     };
                                 }
                             }
+                            this.$forceUpdate();
                         },
                         isPrimitive(ty) {
                             return [
                                 'builtin://String',
                                 'builtin://Float',
                             ].indexOf(ty) >= 0;
+                        },
+                        // evaluate runs a command directly, returning the result
+                        evaluate(run) {
+                            let argNames = run.command.arguments.map((arg) => arg[0]);
+                            let fn = new Function(...argNames, run.command.code);
+                            let args = run.command.arguments.map((arg) => {
+                                if (this.isPrimitive(arg[1])) {
+                                    return run.args[arg[0]].command;
+                                } else {
+                                    return this.evaluate(run.args[arg[0]]);
+                                }
+                            });
+                            return fn(...args);
+                        },
+                        // execute runs a specific command and displays the result
+                        execute(run) {
+                            let ret = this.evaluate(run);
+                            if (!Array.isArray(ret)) {
+                                ret = [ret];
+                            }
+                            // Store results in-place
+                            this.results.length = 0;
+                            this.results.unshift(...ret);
                         },
                     },
                 });
@@ -925,14 +952,21 @@ function addCommand(name, args, ret, code) {
         code,
     };
 }
-addCommand('graph', [], 'builtin://Graph', `
-    return builtins['builtin://Graph'];
+addCommand('graph', [], 'builtin://Library', `
+    return loadResource(builtins['builtin://Graph']);
 `);
 addCommand('nodes', [
     ['graph', 'builtin://Library'],
     ['type', 'builtin://String'],
 ], 'builtin://Array', `
     return graph.getNodesOfType(type);
+`);
+addCommand('filter', [
+    ['nodes', 'builtin://Array'],
+    ['predicate', 'builtin://Command'],
+], 'builtin://Array', `
+    // this isn't going to work lol
+    return nodes.filter((n) => predicate.evaluate(n));
 `);
 
 // Initialize any un-set fields that all Nodes need

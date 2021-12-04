@@ -42,7 +42,13 @@ function loadResource(node) {
         let res = loadResource(dep);
         imports[name] = res;
     }
-    let resource = new Function('imports', '"use strict";\n' + node.code)(imports);
+    let resource = {...node};
+    if (node.type === 'builtin://Application' || node.type === 'builtin://Library') {
+        let dyn = new Function('imports', '"use strict";\n' + node.code)(imports);
+        for (let key of Object.keys(dyn)) {
+            resource[key] = dyn[key];
+        }
+    }
     // magic for builtin nodes to have access to things
     if (node.id === 'builtin://Graph') {
         resource.nodes = nodes;
