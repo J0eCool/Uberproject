@@ -89,6 +89,12 @@ const builtins = {
             ImportDict: ['import', 'builtin://Dict', 'String', 'Any'],
             String: ['import', 'builtin://String'],
         },
+        construct(self, links) {
+            let dyn = new Function('imports', '"use strict";\n' + self.code)(links);
+            for (let key of Object.keys(dyn)) {
+                self[key] = dyn[key];
+            }
+        },
     },
     'builtin://Library': {
         type: 'builtin://Type',
@@ -97,6 +103,13 @@ const builtins = {
         fields: {},
         methods: {},
         types: {},
+        // todo: this is redundant with Application
+        construct(self, links) {
+            let dyn = new Function('imports', '"use strict";\n' + self.code)(links);
+            for (let key of Object.keys(dyn)) {
+                self[key] = dyn[key];
+            }
+        },
     },
 
     // ---------------
