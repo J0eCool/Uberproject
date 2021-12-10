@@ -4,6 +4,7 @@ function generateId() {
     return crypto.randomUUID();
 }
 
+const builtins = loadBuiltinData();
 const nodes = {};
 const backlinks = {};
 
