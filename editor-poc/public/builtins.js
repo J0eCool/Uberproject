@@ -89,8 +89,8 @@ const builtins = {
             ImportDict: ['import', 'builtin://Dict', 'String', 'Any'],
             String: ['import', 'builtin://String'],
         },
-        construct(self, links) {
-            let dyn = new Function('imports', '"use strict";\n' + self.code)(links);
+        construct(self, imports) {
+            let dyn = self.initFunc(imports);
             for (let key of Object.keys(dyn)) {
                 self[key] = dyn[key];
             }
@@ -103,9 +103,9 @@ const builtins = {
         fields: {},
         methods: {},
         types: {},
-        // todo: this is redundant with Application
-        construct(self, links) {
-            let dyn = new Function('imports', '"use strict";\n' + self.code)(links);
+        // todo: this is redundant with Application, use subtyping methinks
+        construct(self, imports) {
+            let dyn = self.initFunc(imports);
             for (let key of Object.keys(dyn)) {
                 self[key] = dyn[key];
             }
@@ -119,7 +119,7 @@ const builtins = {
     // Libraries
     'builtin://Graph': {
         type: 'builtin://Library',
-        code: `return {
+        initFunc(imports) { return {
             // Magic: this.nodes and this.backlinks gets set by the kernel
 
             // A list of all the nodes
@@ -164,11 +164,11 @@ const builtins = {
             },
 
             // todo: getnode/setnode should live here?
-        };`,
+        }; },
     },
     'builtin://VueApp': {
         type: 'builtin://Library',
-        code: `return {
+        initFunc(imports) { return {
             setAppHtml(html) {
                 document.getElementById('app').innerHTML = html;
             },
@@ -178,22 +178,22 @@ const builtins = {
             component(name, params) {
                 return Vue.component(name, params);
             },
-        };`,
+        }; },
     },
     'builtin://CanvasApp': {
         type: 'builtin://Library',
         imports: {
             'vue': 'builtin://VueApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init(width, height) {
-                imports.vue.setAppHtml(\`
-                    <canvas id='canvas' width=\${width} height=\${height}
+                imports.vue.setAppHtml(`
+                    <canvas id='canvas' width=${width} height=${height}
                         style="position:absolute;left:0px;top:0px;
                         width:100%;max-height:100%;
                         object-fit:contain;image-rendering:pixelated"
                     ></canvas>
-                \`);
+                `);
                 let canvas = document.getElementById('canvas');
                 this.width = width;
                 this.height = height;
@@ -201,7 +201,7 @@ const builtins = {
                 this.pixels = new Uint8Array(4 * width * height);
                 this.image = this.ctx.createImageData(width, height);
             },
-        };`,
+        }; },
     },
     
     //-----------------------
@@ -215,9 +215,9 @@ const builtins = {
             graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init() {
-                imports.vue.setAppHtml(\`
+                imports.vue.setAppHtml(`
                     <h3>Application List</h3>
                     <ul>
                         <li v-for="node in nodes"
@@ -228,7 +228,7 @@ const builtins = {
                             </a>
                         </li>
                     </ul>
-                \`);
+                `);
 
                 let app = imports.vue.newApp({
                     el: '#app',
@@ -238,7 +238,7 @@ const builtins = {
                     },
                 });
             },
-        };`,
+        }; },
     },
 
     // Node viewer - inspect every node in the graph
@@ -249,9 +249,9 @@ const builtins = {
             graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init() {
-                imports.vue.setAppHtml(\`
+                imports.vue.setAppHtml(`
                     <div>
                         <h3>Search</h3>
                         Type: <input v-model="searchType">
@@ -288,7 +288,7 @@ const builtins = {
                             </ul>
                         </li>
                     </ul>
-                \`);
+                `);
 
                 // Because we reference app in the rendering template before newApp
                 // can return, we can't just use 'let app = ...'
@@ -308,7 +308,7 @@ const builtins = {
                     },
                 });
             },
-        };`,
+        }; }
     },
 
     // Tooter - threaded messages with replies, little else
@@ -332,9 +332,9 @@ const builtins = {
             graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init() {
-                imports.vue.setAppHtml(\`
+                imports.vue.setAppHtml(`
                     <h3>Tooter</h3>
                     <ul>
                     <toot v-for="node in nodes"
@@ -350,7 +350,7 @@ const builtins = {
                         @publish="publish($event)"
                     ></toot-writer>
                     </ul>
-                \`);
+                `);
 
                 imports.vue.component('toot-writer', {
                     data() {
@@ -359,15 +359,15 @@ const builtins = {
                         };
                     },
                     template:
-                        \`<div>
+                        `<div>
                             <textarea v-model="message"></textarea>
                             <button @click="$emit('publish', message)">Publish</button>
-                        </div>\`,
+                        </div>`,
                 });
                 imports.vue.component('toot', {
                     props: ['node', 'nodes', 'selected'],
                     template:
-                        \`<li>
+                        `<li>
                             {{node.description}}
                             <button @click="$emit('select', node)">Reply</button>
                             <ul>
@@ -384,7 +384,7 @@ const builtins = {
                                     @publish="$emit('publish', $event)"
                                 ></toot-writer>
                             </ul>
-                        </li>\`,
+                        </li>`,
                 });
 
                 let app = imports.vue.newApp({
@@ -422,7 +422,7 @@ const builtins = {
                     },
                 });
             },
-        };`,
+        }; },
     },
 
     // Glowy Sun - Canvas demo to show graphical applications
@@ -432,7 +432,7 @@ const builtins = {
         imports: {
             canvas: 'builtin://CanvasApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init() {
                 console.log('nodes!', nodes);
                 imports.canvas.init(320, 240);
@@ -506,7 +506,7 @@ const builtins = {
                 this.image.data.set(pixels);
                 this.ctx.putImageData(this.image, 0, 0);
             },
-        };`,
+        }; },
     },
 
     // FileMap - sets up bidirectional linking between files on the user's native
@@ -517,9 +517,9 @@ const builtins = {
         imports: {
             vue: 'builtin://VueApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init() {
-                imports.vue.setAppHtml(\`
+                imports.vue.setAppHtml(`
                     <h3>Watching Directory: {{dirName}}</h3>
                     <div>
                         <button @click="selectDir()">Select folder</button>
@@ -546,7 +546,7 @@ const builtins = {
                         For now all it does is bulk-import all .md files in a
                         folder into WikiPage nodes, one-way.
                     </div>
-                \`);
+                `);
 
                 // Iterates over every file in a directory and 
                 async function walkDir(dir, f) {
@@ -598,7 +598,7 @@ const builtins = {
                     },
                 });
             },
-        };`,
+        }; },
     },
 
     // Tweet applications
@@ -627,9 +627,9 @@ const builtins = {
             graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init() {
-                imports.vue.setAppHtml(\`
+                imports.vue.setAppHtml(`
                     <h3>Upload your tweet.js</h3>
                     <div>{{ status }}</div>
                     <div>
@@ -648,7 +648,7 @@ const builtins = {
                         your tweets. (This would also make it possible to automatically
                         fill in your username.)
                     </div>
-                \`);
+                `);
 
                 let app = imports.vue.newApp({
                     el: '#app',
@@ -690,17 +690,17 @@ const builtins = {
                                     tweets.push(tweet);
                                     
                                     if ((i % 100) === 0) {
-                                        app.status = \`Loading \${i+1} / \${rawTweets.length}...\`;
+                                        app.status = `Loading ${i+1} / ${rawTweets.length}...`;
                                     }
                                 }
                                 imports.graph.saveNodes(tweets);
-                                app.status = \`Loaded \${rawTweets.length} Tweets!\`;
+                                app.status = `Loaded ${rawTweets.length} Tweets!`;
                             });
                         },
                     },
                 });
             },
-        };`,
+        }; },
     },
     // Tweet Search - simple tweet data viewer
     'builtin://tweet-searcher': {
@@ -710,9 +710,9 @@ const builtins = {
             graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init() {
-                imports.vue.setAppHtml(\`
+                imports.vue.setAppHtml(`
                     <h3>Tweet Search</h3>
                     <div>
                         Search: <input v-model="searchText" @input="searchChanged()">
@@ -729,7 +729,7 @@ const builtins = {
                             <div v-html="htmlEncode(tweet.text)"></span>
                         </li>
                     </ul>
-                \`);
+                `);
 
                 let tweets = imports.graph.getNodesOfType('builtin://Tweet');
                 let self = this;
@@ -781,7 +781,7 @@ const builtins = {
                                 ;
                         },
                         url(tweet) {
-                            return \`http://www.twitter.com/\${tweet.user}/status/\${tweet.tweetId}\`;
+                            return `http://www.twitter.com/${tweet.user}/status/${tweet.tweetId}`;
                         },
                         formatTime(tweet) {
                             let date = new Date(tweet.time);
@@ -792,7 +792,7 @@ const builtins = {
                 // initialize search data
                 self.app.searchChanged();
             },
-        };`,
+        }; },
     },
 
     // "Command line"
@@ -824,9 +824,9 @@ const builtins = {
             graph: 'builtin://Graph',
             vue: 'builtin://VueApp',
         },
-        code: `return {
+        initFunc(imports) { return {
             init() {
-                imports.vue.setAppHtml(\`
+                imports.vue.setAppHtml(`
                     <h3>Command</h3>
                     <command-editor
                         :run="run"
@@ -846,7 +846,7 @@ const builtins = {
                         </ul>
                     </li>
                     </ul>
-                \`);
+                `);
 
                 imports.vue.component('command-editor', {
                     props: ['run', 'expectedType', 'commands', 'results', 'types'],
@@ -855,7 +855,7 @@ const builtins = {
                             search: '',
                         };
                     },
-                    template: \`<div>
+                    template: `<div>
                         <div v-if="run.command === null">
                             <button v-for="cmd in commands"
                                 v-if="(expectedType === 'builtin://Any' || cmd.returns === expectedType) && cmd.name.indexOf(search) >= 0"
@@ -883,7 +883,7 @@ const builtins = {
                             </ul>
                             <button @click="execute(run)">Run</button>
                         </div>
-                    </div>\`,
+                    </div>`,
                     methods: {
                         setCommand(cmd) {
                             this.run.command = cmd;
@@ -951,7 +951,7 @@ const builtins = {
                     },
                 });
             },
-        };`,
+        }; },
     },
 };
 
