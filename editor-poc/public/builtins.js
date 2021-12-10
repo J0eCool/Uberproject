@@ -2,51 +2,28 @@ function loadBuiltinData() {
 
 // Initialize nodes with all the builtin types and applications
 const builtins = {};
-    // Primitive types (no type imports)
-builtins['builtin://Any'] = {
-    type: 'builtin://Type',
-    name: 'Any',
-    params: [],
-    fields: {},
-    methods: {},
-    types: {},
-};
-builtins['builtin://Float'] = {
-    type: 'builtin://Type',
-    name: 'Float',
-    params: [],
-    fields: {},
-    methods: {},
-    types: {},
-};
-builtins['builtin://String'] = {
-    type: 'builtin://Type',
-    name: 'String',
-    params: [],
-    fields: {},
-    methods: {},
-    types: {},
-};
 
-    // Generic types
-builtins['builtin://Array'] = {
-    type: 'builtin://Type',
-    name: 'Array',
-    params: ['t'],
-    fields: {},
-    methods: {},
-    types: {},
-};
-builtins['builtin://Dict'] = {
-    type: 'builtin://Type',
-    name: 'Dictionary',
-    params: ['key', 'val'],
-    fields: {},
-    methods: {},
-    types: {},
-};
+// Primitive types (no type imports)
+function primitive(name, params=[]) {
+    builtins['builtin://' + name] = {
+        type: 'builtin://Type',
+        name: name,
+        params: params,
+        fields: {},
+        methods: {},
+        types: {},
+    };
+}
 
-    // More complex builtin types
+primitive('Any');
+primitive('Float');
+primitive('String');
+
+// Generic types
+primitive('Array', ['t']);
+primitive('Dictionary', ['key', 'val']);
+
+// More complex builtin types
 builtins['builtin://Type'] = {
     type: 'builtin://Type',
     name: 'Type',
@@ -73,6 +50,15 @@ builtins['builtin://Type'] = {
         TypeArray: ['import', 'builtin://Array', 'Type'],
     },
 };
+
+// construct function for both Application and Libraries
+// there is a better way to factor those but for now this works
+function constructRunnable(self, imports) {
+    let dyn = self.initFunc(imports);
+    for (let key of Object.keys(dyn)) {
+        self[key] = dyn[key];
+    }
+}
 builtins['builtin://Application'] = {
     type: 'builtin://Type',
     name: 'Application',
@@ -90,12 +76,7 @@ builtins['builtin://Application'] = {
         ImportDict: ['import', 'builtin://Dict', 'String', 'Any'],
         String: ['import', 'builtin://String'],
     },
-    construct(self, imports) {
-        let dyn = self.initFunc(imports);
-        for (let key of Object.keys(dyn)) {
-            self[key] = dyn[key];
-        }
-    },
+    construct: constructRunnable,
 };
 builtins['builtin://Library'] = {
     type: 'builtin://Type',
@@ -104,20 +85,10 @@ builtins['builtin://Library'] = {
     fields: {},
     methods: {},
     types: {},
-    // todo: this is redundant with Application, use subtyping methinks
-    construct(self, imports) {
-        let dyn = self.initFunc(imports);
-        for (let key of Object.keys(dyn)) {
-            self[key] = dyn[key];
-        }
-    },
+    construct: constructRunnable,
 };
 
-    // ---------------
-    // Below this line, these are samples that aren't part of the syscall layer
-    // Well the default NodeViewer probably needs to be built in to bootstrap lol
-
-    // Libraries
+// Libraries
 builtins['builtin://Graph'] = {
     type: 'builtin://Library',
     initFunc(imports) { return {
@@ -205,10 +176,10 @@ builtins['builtin://CanvasApp'] = {
     }; },
 };
     
-    //-----------------------
-    // Applications
+//-----------------------
+// Applications
 
-    // Launcher - Simple launcher for Applications
+// Launcher - Simple launcher for Applications
 builtins['builtin://launcher'] = {
     type: 'builtin://Application',
     title: 'Launcher',
@@ -242,7 +213,7 @@ builtins['builtin://launcher'] = {
     }; },
 };
 
-    // Node viewer - inspect every node in the graph
+// Node viewer - inspect every node in the graph
 builtins['builtin://node-viewer'] = {
     type: 'builtin://Application',
     title: 'Node Viewer',
@@ -312,7 +283,7 @@ builtins['builtin://node-viewer'] = {
     }; }
 };
 
-    // Tooter - threaded messages with replies, little else
+// Tooter - threaded messages with replies, little else
 builtins['builtin://Toot'] = {
     type: 'builtin://Type',
     name: 'Toot',
@@ -426,7 +397,7 @@ builtins['builtin://tooter'] = {
     }; },
 };
 
-    // Glowy Sun - Canvas demo to show graphical applications
+// Glowy Sun - Canvas demo to show graphical applications
 builtins['builtin://glowy-sun'] = {
     type: 'builtin://Application',
     title: 'A glowy sun',
@@ -510,8 +481,8 @@ builtins['builtin://glowy-sun'] = {
     }; },
 };
 
-    // FileMap - sets up bidirectional linking between files on the user's native
-    // filesystem, and nodes in the graph
+// FileMap - sets up bidirectional linking between files on the user's native
+// filesystem, and nodes in the graph
 builtins['builtin://file-mapping'] = {
     type: 'builtin://Application',
     title: 'FileMap',
@@ -602,7 +573,7 @@ builtins['builtin://file-mapping'] = {
     }; },
 };
 
-    // Tweet applications
+// Tweet applications
 builtins['builtin://Tweet'] = {
     type: 'builtin://Type',
     name: 'Tweet',
@@ -620,7 +591,7 @@ builtins['builtin://Tweet'] = {
         Tweet: ['self'],
     },
 };
-    // tweet.js Uploader - parses a tweet.json
+// tweet.js Uploader - parses a tweet.json
 builtins['builtin://tweet-js-upload'] = {
     type: 'builtin://Application',
     title: 'tweet.js Uploader',
@@ -703,7 +674,7 @@ builtins['builtin://tweet-js-upload'] = {
         },
     }; },
 };
-    // Tweet Search - simple tweet data viewer
+// Tweet Search - simple tweet data viewer
 builtins['builtin://tweet-searcher'] = {
     type: 'builtin://Application',
     title: 'Tweet Search',
@@ -796,7 +767,7 @@ builtins['builtin://tweet-searcher'] = {
     }; },
 };
 
-    // "Command line"
+// "Command line"
 builtins['builtin://Command'] = {
     type: 'builtin://Type',
     name: 'Command',
@@ -957,16 +928,16 @@ builtins['builtin://command-runner'] = {
 
 // Add some Commands in a simpler way
 function addCommand(name, args, ret, code) {
-builtins['builtin://command-' + name] = {
-    type: 'builtin://Command',
-    name,
-    arguments: args,
-    returns: ret,
-    code,
-};
+    builtins['builtin://command-' + name] = {
+        type: 'builtin://Command',
+        name,
+        arguments: args,
+        returns: ret,
+        code,
+    };
 }
 addCommand('graph', [], 'builtin://Library', `
-return loadResource(builtins['builtin://Graph']);
+    return loadResource(builtins['builtin://Graph']);
 `);
 addCommand('nodes', [
     ['graph', 'builtin://Library'],
