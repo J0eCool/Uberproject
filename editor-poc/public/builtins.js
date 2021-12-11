@@ -88,6 +88,28 @@ builtins['builtin://Library'] = {
     construct: constructRunnable,
 };
 
+// Commands - single-function nodes used to chain together command-line style
+builtins['builtin://Command'] = {
+    type: 'builtin://Type',
+    name: 'Command',
+    params: ['args', 'results'],
+    fields: {
+        name: 'String',
+        arguments: 'ArgList',
+        returns: 'Type',
+        code: 'String',
+    },
+    methods: {
+        // TODO: figure out how to actually parameterize Commands
+        run: [['args'], ['results']],
+    },
+    types: {
+        Argument: ['tuple', 'String', 'Type'],
+        ArgList: ['import', 'builtin://Array', 'Argument'],
+        String: ['import', 'builtin://String'],
+        Type: ['import', 'builtin://Type'],
+    },
+};
 // Libraries
 builtins['builtin://Graph'] = {
     type: 'builtin://Library',
@@ -179,8 +201,9 @@ builtins['builtin://CanvasApp'] = {
 //-----------------------
 // Applications
 
+let preload = {};
 // Launcher - Simple launcher for Applications
-builtins['builtin://launcher'] = {
+preload['preload://launcher'] = {
     type: 'builtin://Application',
     title: 'Launcher',
     imports: {
@@ -214,7 +237,7 @@ builtins['builtin://launcher'] = {
 };
 
 // Node viewer - inspect every node in the graph
-builtins['builtin://node-viewer'] = {
+preload['preload://node-viewer'] = {
     type: 'builtin://Application',
     title: 'Node Viewer',
     imports: {
@@ -284,7 +307,7 @@ builtins['builtin://node-viewer'] = {
 };
 
 // Tooter - threaded messages with replies, little else
-builtins['builtin://Toot'] = {
+preload['preload://Toot'] = {
     type: 'builtin://Type',
     name: 'Toot',
     fields: {
@@ -297,7 +320,7 @@ builtins['builtin://Toot'] = {
         Toot: ['self'],
     },
 };
-builtins['builtin://tooter'] = {
+preload['preload://tooter'] = {
     type: 'builtin://Application',
     title: 'Tooter App',
     imports: {
@@ -310,7 +333,7 @@ builtins['builtin://tooter'] = {
                 <h3>Tooter</h3>
                 <ul>
                 <toot v-for="node in nodes"
-                    v-if="node.type === 'builtin://Toot' && node.parent === null"
+                    v-if="node.type === 'preload://Toot' && node.parent === null"
                     :node="node"
                     :nodes="nodes"
                     :selected="selected"
@@ -344,7 +367,7 @@ builtins['builtin://tooter'] = {
                         <button @click="$emit('select', node)">Reply</button>
                         <ul>
                             <toot v-for="child in nodes"
-                                v-if="child.type === 'builtin://Toot' && child.parent === node.id"
+                                v-if="child.type === 'preload://Toot' && child.parent === node.id"
                                 :node="child"
                                 :nodes="nodes"
                                 :selected="selected"
@@ -380,7 +403,7 @@ builtins['builtin://tooter'] = {
                         let node = {
                             // Generic properties
                             id: generateId(),
-                            type: 'builtin://Toot',
+                            type: 'preload://Toot',
                             links: parent ? [parent] : [],
             
                             // Note-specific properties
@@ -398,7 +421,7 @@ builtins['builtin://tooter'] = {
 };
 
 // Glowy Sun - Canvas demo to show graphical applications
-builtins['builtin://glowy-sun'] = {
+preload['preload://glowy-sun'] = {
     type: 'builtin://Application',
     title: 'A glowy sun',
     imports: {
@@ -483,7 +506,7 @@ builtins['builtin://glowy-sun'] = {
 
 // FileMap - sets up bidirectional linking between files on the user's native
 // filesystem, and nodes in the graph
-builtins['builtin://file-mapping'] = {
+preload['preload://file-mapping'] = {
     type: 'builtin://Application',
     title: 'FileMap',
     imports: {
@@ -574,7 +597,7 @@ builtins['builtin://file-mapping'] = {
 };
 
 // Tweet applications
-builtins['builtin://Tweet'] = {
+preload['preload://Tweet'] = {
     type: 'builtin://Type',
     name: 'Tweet',
     fields: {
@@ -592,7 +615,7 @@ builtins['builtin://Tweet'] = {
     },
 };
 // tweet.js Uploader - parses a tweet.json
-builtins['builtin://tweet-js-upload'] = {
+preload['preload://tweet-js-upload'] = {
     type: 'builtin://Application',
     title: 'tweet.js Uploader',
     imports: {
@@ -650,7 +673,7 @@ builtins['builtin://tweet-js-upload'] = {
                             for (let i = 0; i < rawTweets.length; ++i) {
                                 let raw = rawTweets[i]['tweet'];
                                 let tweet = {
-                                    type: 'builtin://Tweet',
+                                    type: 'preload://Tweet',
                                     links: [],
 
                                     tweetId: raw['id'],
@@ -675,7 +698,7 @@ builtins['builtin://tweet-js-upload'] = {
     }; },
 };
 // Tweet Search - simple tweet data viewer
-builtins['builtin://tweet-searcher'] = {
+preload['preload://tweet-searcher'] = {
     type: 'builtin://Application',
     title: 'Tweet Search',
     imports: {
@@ -703,7 +726,7 @@ builtins['builtin://tweet-searcher'] = {
                 </ul>
             `);
 
-            let tweets = imports.graph.getNodesOfType('builtin://Tweet');
+            let tweets = imports.graph.getNodesOfType('preload://Tweet');
             let self = this;
             self.resultsPerPage = 25;
             self.app = imports.vue.newApp({
@@ -768,28 +791,7 @@ builtins['builtin://tweet-searcher'] = {
 };
 
 // "Command line"
-builtins['builtin://Command'] = {
-    type: 'builtin://Type',
-    name: 'Command',
-    params: ['args', 'results'],
-    fields: {
-        name: 'String',
-        arguments: 'ArgList',
-        returns: 'Type',
-        code: 'String',
-    },
-    methods: {
-        // TODO: figure out how to actually parameterize Commands
-        run: [['args'], ['results']],
-    },
-    types: {
-        Argument: ['tuple', 'String', 'Type'],
-        ArgList: ['import', 'builtin://Array', 'Argument'],
-        String: ['import', 'builtin://String'],
-        Type: ['import', 'builtin://Type'],
-    },
-};
-builtins['builtin://command-runner'] = {
+preload['preload://command-runner'] = {
     type: 'builtin://Application',
     title: 'Command Runner',
     imports: {
@@ -928,7 +930,7 @@ builtins['builtin://command-runner'] = {
 
 // Add some Commands in a simpler way
 function addCommand(name, args, ret, code) {
-    builtins['builtin://command-' + name] = {
+    preload['preload://command-' + name] = {
         type: 'builtin://Command',
         name,
         arguments: args,
@@ -952,6 +954,9 @@ addCommand('filter', [
     // this isn't going to work lol
     return nodes.filter((n) => predicate.evaluate(n));
 `);
+
+// combine preload with builtins, because they're really just for organization
+Object.assign(builtins, preload);
 
 // Initialize any un-set fields that all Nodes need
 for (let id in builtins) {

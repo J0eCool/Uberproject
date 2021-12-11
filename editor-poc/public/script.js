@@ -9,6 +9,9 @@ const nodes = {};
 const backlinks = {};
 
 function getNode(id) {
+    if (!nodes[id]) {
+        throw 'Unknown node:' + id;
+    }
     return nodes[id];
 }
 
@@ -135,7 +138,7 @@ window.addEventListener('storage', (event) => {
 
 function startApplication() {
     let urlParams = new URLSearchParams(window.location.search);
-    let applicationNode = nodes[urlParams.get('app')] || nodes['builtin://launcher'];
+    let applicationNode = nodes[urlParams.get('app')] || getNode('preload://launcher');
     document.title = applicationNode.title;
 
     let application = loadResource(applicationNode);
