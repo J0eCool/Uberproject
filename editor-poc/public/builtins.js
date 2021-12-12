@@ -216,11 +216,20 @@ builtins['builtin://Graph'] = {
 builtins['builtin://VueApp'] = {
     type: 'builtin://Library',
     initFunc(imports) { return {
+        // TODO: deprecated
         setAppHtml(html) {
             document.getElementById('app').innerHTML = html;
         },
         newApp(params) {
             return new Vue(params);
+        },
+
+        app(template, params) {
+            document.getElementById('app').innerHTML = template;
+            return new Vue({
+                el: '#app',
+                ...params,
+            });
         },
         component(name, params) {
             return Vue.component(name, params);
@@ -952,7 +961,7 @@ preload['preload://command-runner'] = {
         init() {
             let types = imports.graph.getTypeNodes();
 
-            imports.vue.setAppHtml(`
+            imports.vue.app(`
                 <h3>Command</h3>
                 <command-editor
                     :run="run"
@@ -971,10 +980,7 @@ preload['preload://command-runner'] = {
                     </ul>
                 </li>
                 </ul>
-            `);
-
-            imports.vue.newApp({
-                el: '#app',
+            `, {
                 data: {
                     run: {
                         command: null,
