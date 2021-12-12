@@ -139,10 +139,10 @@ window.addEventListener('storage', (event) => {
 function startApplication() {
     let urlParams = new URLSearchParams(window.location.search);
     let applicationNode = nodes[urlParams.get('app')] || getNode('preload://launcher');
-    document.title = applicationNode.title;
-
     let application = loadResource(applicationNode);
 
+    document.title = application.title;
+    
     if (application.init) {
         application.init();
     }

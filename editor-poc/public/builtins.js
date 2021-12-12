@@ -16,12 +16,13 @@ function primitive(name, params=[]) {
 }
 
 primitive('Any');
+primitive('Empty');
 primitive('Float');
 primitive('String');
 
 // Generic types
 primitive('Array', ['t']);
-primitive('Dictionary', ['key', 'val']);
+primitive('Dict', ['key', 'val']);
 
 // More complex builtin types
 builtins['builtin://Type'] = {
@@ -88,6 +89,21 @@ builtins['builtin://Library'] = {
     construct: constructRunnable,
 };
 
+// UI Nodes - responsible for drawing to screen
+builtins['builtin://UI'] = {
+    type: 'builtin://Type',
+    name: 'UI',
+    params: ['t'],
+    fields: {},
+    methods: {
+        component: [[], ['String']]
+    },
+    types: {
+        String: ['import', 'builtin://String'],
+    },
+    construct: constructRunnable,
+};
+
 // Commands - single-function nodes used to chain together command-line style
 builtins['builtin://Command'] = {
     type: 'builtin://Type',
@@ -110,6 +126,33 @@ builtins['builtin://Command'] = {
         Type: ['import', 'builtin://Type'],
     },
 };
+
+// Command descriptions - used to call commands with values passed as parameters
+builtins['builtin://CommandDesc'] = {
+    type: 'builtin://Type',
+    name: 'Command Description',
+    params: ['args', 'results'],
+    fields: {
+        command: 'Command',
+        params: 'ParamList',
+    },
+    methods: {
+        // TODO: figure out how to actually parameterize Commands
+        run: [['args'], ['results']],
+    },
+    types: {
+        Command: ['import', 'builtin://Command'],
+        CommandDesc: ['self'],
+        Param: ['import', 'builtin://Any'],
+        // Param: ['variant', 'Empty', 'String', 'Float', 'CommandDesc'],
+        ParamList: ['import', 'builtin://Array', 'Param'],
+        String: ['import', 'builtin://String'],
+    },
+    construct(self, links) {
+        self.run = (...args) => {};
+    },
+};
+
 // Libraries
 builtins['builtin://Graph'] = {
     type: 'builtin://Library',
@@ -129,9 +172,9 @@ builtins['builtin://Graph'] = {
             // return ret;
         },
 
-        // A list of all nodes matching a specific type
-        // URL -> Array<Node>
-        getNodesOfType(ty) {
+        // A list of all Nodes matching a specific type, loaded into Resources
+        // URL -> Array<Resource>
+        loadNodesOfType(ty) {
             let ret = [];
             for (let node of Object.values(this.nodes)) {
                 // todo: subtyping :D
@@ -140,6 +183,16 @@ builtins['builtin://Graph'] = {
                 }
             }
             return ret;
+        },
+
+        // A dict of all type nodes, indexed by id
+        getTypeNodes() {
+            let typeNodes = this.loadNodesOfType('builtin://Type');
+            let types = {};
+            for (let node of typeNodes) {
+                types[node.id] = node;
+            }
+            return types;
         },
 
         getBacklinks() {
@@ -726,7 +779,7 @@ preload['preload://tweet-searcher'] = {
                 </ul>
             `);
 
-            let tweets = imports.graph.getNodesOfType('preload://Tweet');
+            let tweets = imports.graph.loadNodesOfType('preload://Tweet');
             let self = this;
             self.resultsPerPage = 25;
             self.app = imports.vue.newApp({
@@ -790,42 +843,23 @@ preload['preload://tweet-searcher'] = {
     }; },
 };
 
-// "Command line"
-preload['preload://command-runner'] = {
-    type: 'builtin://Application',
-    title: 'Command Runner',
+// Editor for CommandDescs
+preload['preload://CommandEditor'] = {
+    type: 'builtin://UI',
     imports: {
         graph: 'builtin://Graph',
-        vue: 'builtin://VueApp',
     },
     initFunc(imports) { return {
-        init() {
-            imports.vue.setAppHtml(`
-                <h3>Command</h3>
-                <command-editor
-                    :run="run"
-                    :expected-type="'builtin://Any'"
-                    :commands="commands"
-                    :results="results"
-                    :types="types"
-                ></command-editor>
-                <h3>Result</h3>
-                <ul>
-                <li v-for="node in results">
-                    <b>{{node.id}}</b> - {{types[node.type].name}}
-                    <ul>
-                    <li v-for="type, key in types[node.type].fields">
-                        {{key}}: {{node[key]}}
-                    </li>
-                    </ul>
-                </li>
-                </ul>
-            `);
-
-            imports.vue.component('command-editor', {
-                props: ['run', 'expectedType', 'commands', 'results', 'types'],
+        component() {
+            let commands = imports.graph.loadNodesOfType('builtin://Command');
+            let types = imports.graph.getTypeNodes();
+            return {
+                name: 'command-editor',
+                props: ['run', 'expectedType', 'results'],
                 data() {
                     return {
+                        commands,
+                        types,
                         search: '',
                     };
                 },
@@ -849,9 +883,7 @@ preload['preload://command-runner'] = {
                             <command-editor v-else
                                 :run="run.args[arg[0]]"
                                 :expected-type="arg[1]"
-                                :commands="commands"
                                 :results="results"
-                                :types="types"
                             ></command-editor>
                         </li>
                         </ul>
@@ -897,31 +929,65 @@ preload['preload://command-runner'] = {
                         if (!Array.isArray(ret)) {
                             ret = [ret];
                         }
-                        // Store results in-place
-                        this.results.length = 0;
-                        this.results.unshift(...ret);
+
+                        this.results.items = ret.slice(0, 100);
+                        this.results.count = ret.length;
                     },
                 },
-            });
+            };
+        },
+    }; }
+};
 
-            let commands = imports.graph.getNodesOfType('builtin://Command');
-            let typeNodes = imports.graph.getNodesOfType('builtin://Type');
-            let types = {};
-            for (let node of typeNodes) {
-                types[node.id] = node;
-            }
-            let app = imports.vue.newApp({
+// "Command line"
+preload['preload://command-runner'] = {
+    type: 'builtin://Application',
+    title: 'Command Runner',
+    imports: {
+        graph: 'builtin://Graph',
+        vue: 'builtin://VueApp',
+        commandEditor: 'preload://CommandEditor',
+    },
+    initFunc(imports) { return {
+        init() {
+            let types = imports.graph.getTypeNodes();
+
+            imports.vue.setAppHtml(`
+                <h3>Command</h3>
+                <command-editor
+                    :run="run"
+                    :expected-type="'builtin://Any'"
+                    :results="results"
+                ></command-editor>
+                <h3>Results</h3>
+                <div>{{results.count}} results</div>
+                <ul>
+                <li v-for="node in results.items">
+                    <b>{{node.id}}</b> - {{types[node.type].name}}
+                    <ul>
+                    <li v-for="type, key in types[node.type].fields">
+                        {{key}}: {{node[key]}}
+                    </li>
+                    </ul>
+                </li>
+                </ul>
+            `);
+
+            imports.vue.newApp({
                 el: '#app',
                 data: {
                     run: {
                         command: null,
                         args: {},
                     },
-                    commands,
                     types,
-                    results: [],
+                    results: {
+                        items: [],
+                        count: 0,
+                    },
                 },
-                methods: {
+                components: {
+                    'command-editor': imports.commandEditor.component(),
                 },
             });
         },
@@ -945,7 +1011,7 @@ addCommand('nodes', [
     ['graph', 'builtin://Library'],
     ['type', 'builtin://String'],
 ], 'builtin://Array', `
-    return graph.getNodesOfType(type);
+    return graph.loadNodesOfType(type);
 `);
 addCommand('filter', [
     ['nodes', 'builtin://Array'],
