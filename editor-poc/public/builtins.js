@@ -675,6 +675,11 @@ preload['preload://Tweet'] = {
         Time: ['import', 'builtin://Float'],
         Tweet: ['self'],
     },
+    construct(self, links) {
+        self.url = () => {
+            return `http://www.twitter.com/${self.user}/status/${self.tweetId}`;
+        };
+    },
 };
 // tweet.js Uploader - parses a tweet.json
 preload['preload://tweet-js-upload'] = {
@@ -782,7 +787,7 @@ preload['preload://tweet-searcher'] = {
                 </div>
                 <ul>
                     <li v-for="tweet in searchResults[searchPage]">
-                        <a :href="url(tweet)">{{ formatTime(tweet) }}</a>
+                        <a :href="tweet.url()">{{ formatTime(tweet) }}</a>
                         <div v-html="htmlEncode(tweet.text)"></span>
                     </li>
                 </ul>
@@ -836,9 +841,6 @@ preload['preload://tweet-searcher'] = {
                             .replaceAll('"', '&quot;')
                             .replaceAll('\\n', '<br>')
                             ;
-                    },
-                    url(tweet) {
-                        return `http://www.twitter.com/${tweet.user}/status/${tweet.tweetId}`;
                     },
                     formatTime(tweet) {
                         let date = new Date(tweet.time);
