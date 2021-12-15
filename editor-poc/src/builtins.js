@@ -1,4 +1,9 @@
-function loadBuiltinData() {
+import {
+    generateId,
+    loadResource,
+ } from "./kernel.js";
+
+export function loadBuiltinData() {
 
 // Initialize nodes with all the builtin types and applications
 const builtins = {};
