@@ -1,7 +1,7 @@
 import {
     generateId,
     loadResource,
- } from "./kernel.js";
+ } from "./kernel";
 
 export function loadBuiltinData() {
 
@@ -793,7 +793,7 @@ preload['preload://tweet-searcher'] = {
                 <ul>
                     <li v-for="tweet in searchResults[searchPage]">
                         <a :href="tweet.url()">{{ formatTime(tweet) }}</a>
-                        <div v-html="htmlEncode(tweet.text)"></span>
+                        <div v-html="htmlEncode(tweet.text)"></div>
                     </li>
                 </ul>
             `);
@@ -844,7 +844,7 @@ preload['preload://tweet-searcher'] = {
                             .replaceAll('<', '&lt;')
                             .replaceAll('>', '&gt;')
                             .replaceAll('"', '&quot;')
-                            .replaceAll('\\n', '<br>')
+                            .replaceAll('\n', '<br>')
                             ;
                     },
                     formatTime(tweet) {
@@ -1033,6 +1033,94 @@ addCommand('filter', [
     // this isn't going to work lol
     return nodes.filter((n) => predicate.evaluate(n));
 `);
+
+preload['preload://note-editor'] = {
+    type: 'builtin://Application',
+    title: 'Note Editor',
+    imports: {
+        graph: 'builtin://Graph',
+    },
+    initFunc(imports) { return {
+        init() {
+            // Experimenting with React, clean up the architecture here later on
+
+            let types = imports.graph.getTypeNodes();
+
+            // Shows generic nodes, used as a fallback
+            class DefaultNodeView extends React.Component {
+                render() {
+                    let node = this.props.node;
+                    let type = types[node.type];
+                    let contents = [];
+                    for (let key of Object.keys(type.fields)) {
+                        contents.push(<li key={key}>{key}: {node[key].toString()}</li>);
+                    }
+                    return <div>
+                        <b>{node.id}</b> - {types[node.type].name}
+                        <ul>{contents}</ul>
+                    </div>;
+                }
+            }
+
+            class TweetView extends React.Component {
+                render() {
+                    let tweet = this.props.node;
+                    return <div>
+                        <a href={tweet.url()}>{ this.formatTime(tweet) }</a>
+                        <div>{this.htmlEncode(tweet.text)}</div>
+                    </div>;
+                }
+
+                htmlEncode(str) {
+                    let ret = [];
+                    for (let elem of str.split('\n')) {
+                        if (ret.length > 0) {
+                            ret.push(<br key={ret.length}/>);
+                        }
+                        ret.push(elem);
+                    }
+                    return ret;
+                }
+                formatTime(tweet) {
+                    let date = new Date(tweet.time);
+                    return date.toLocaleString();
+                }
+            }
+
+            let viewTable = {
+                'preload://Tweet': TweetView,
+            };
+            class Viewer extends React.Component {
+                render() {
+                    let View = viewTable[this.props.node.type] || DefaultNodeView;
+                    return <View node={this.props.node} />;
+                }
+            }
+
+            class App extends React.Component {
+                render() {
+                    let contents = [];
+                    for (let node of this.props.nodes) {
+                        contents.push(<li key={node.id}>
+                            <Viewer node={node} />
+                        </li>);
+                    }
+                    return <div>
+                        <h3>React Demo</h3>
+                        <ul>{contents}</ul>
+                    </div>;
+                }
+            }
+
+            let applications = imports.graph.loadNodesOfType('builtin://Application');
+            let tweets = imports.graph.loadNodesOfType('preload://Tweet');
+            let app = <App nodes={[...applications, ...tweets.slice(0, 100)]} />;
+            ReactDOM.render(app, document.getElementById('app'));
+        },
+    }; },
+};
+
+// -----------------------------------------------------------------------------
 
 // combine preload with builtins, because they're really just for organization
 Object.assign(builtins, preload);

@@ -1,10 +1,10 @@
-import { loadBuiltinData } from "./builtins.js";
+import { loadBuiltinData } from "./builtins";
 import {
     getNode,
     setNode,
     loadResource,
     nodes,
- } from "./kernel.js";
+ } from "./kernel";
 
 const builtins = loadBuiltinData();
 
