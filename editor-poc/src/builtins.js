@@ -99,9 +99,27 @@ builtins['builtin://UI'] = {
     type: 'builtin://Type',
     name: 'UI',
     params: ['t'],
+    fields: {
+        target: 'String',
+    },
+    methods: {
+        component: [[], ['Any']],
+    },
+    types: {
+        Any: ['import', 'builtin://Any'],
+        String: ['import', 'builtin://String'],
+    },
+    construct: constructRunnable,
+};
+
+// deprecated?
+builtins['builtin://VueUI'] = {
+    type: 'builtin://Type',
+    name: 'UI',
+    params: ['t'],
     fields: {},
     methods: {
-        component: [[], ['String']]
+        component: [[], ['String']],
     },
     types: {
         String: ['import', 'builtin://String'],
@@ -164,17 +182,20 @@ builtins['builtin://Graph'] = {
     initFunc(imports) { return {
         // Magic: this.nodes and this.backlinks gets set by the kernel
 
-        // A list of all the nodes
+        // a raw reference to all the nodes
+        // returns Dict<URL, Node>
         getNodes() {
-            // todo: figure out whether we want to return Dict<URL, Node>
             return this.nodes;
+        },
 
-            // todo: or just Array<Node>
-            // let ret = [];
-            // for (let node of Object.values(this.nodes)) {
-            //     ret.push(node);
-            // }
-            // return ret;
+        // a list of all nodes
+        // returns Array<Node>
+        loadAllNodes() {
+            return Object.values(this.nodes).map(loadResource);
+        },
+
+        getNode(url) {
+            return this.nodes[url];
         },
 
         // A list of all Nodes matching a specific type, loaded into Resources
@@ -203,13 +224,13 @@ builtins['builtin://Graph'] = {
         getBacklinks() {
             return this.backlinks;
         },
+        getBacklinksFor(url) {
+            return this.backlinks[url];
+        },
 
         saveNodes(nodes) {
             for (let node of nodes) {
                 let id = generateId();
-                if (this.nodes[id]) {
-                    console.warn('overwriting:', this.nodes[id], 'with', node, '!');
-                }
                 node.id = id;
             }
             saveNodes(nodes);
@@ -309,66 +330,124 @@ preload['preload://node-viewer'] = {
     title: 'Node Viewer',
     imports: {
         graph: 'builtin://Graph',
-        vue: 'builtin://VueApp',
     },
     initFunc(imports) { return {
         init() {
-            imports.vue.setAppHtml(`
-                <div>
-                    <h3>Search</h3>
-                    Type: <input v-model="searchType">
-                </div>
-                <h3>Nodes</h3>
-                <ul>
-                    <li v-for="node in nodes" v-if="searchMatches(node)" :id="node.id">
-                        <a v-if="node.type === 'builtin://Application'"
-                            :href='"./?app=" + node.id'>
-                            <b>{{node.id}}</b>
-                        </a>
-                        <b v-else>{{node.id}}</b>
-                        - {{node.type}}
-                        <ul>
-                        <li v-if="node.links.length > 0">
-                            Links
-                            <ul>
-                            <li v-for="link in node.links">
-                                <a :href="'#' + link">{{link}}</a>
-                            </li>
-                            </ul>
-                        </li>
-                        <li v-if="backlinks[node.id].length > 0">
-                            Backlinks
-                            <ul>
-                            <li v-for="link in backlinks[node.id]">
-                                <a :href="'#' + link">{{link}}</a>
-                            </li>
-                            </ul>
-                        </li>
-                        <li v-for="type, key in nodes[node.type].fields">
-                            {{key}}: {{node[key]}}
-                        </li>
-                        </ul>
-                    </li>
-                </ul>
-            `);
+            let types = imports.graph.getTypeNodes();
 
-            // Because we reference app in the rendering template before newApp
-            // can return, we can't just use 'let app = ...'
-            // see: https://github.com/sveltejs/svelte/issues/3234
-            let app;
-            app = imports.vue.newApp({
-                el: '#app',
-                data: {
-                    searchType: '',
-                    backlinks: imports.graph.getBacklinks(),
-                    nodes: imports.graph.getNodes(),
-                },
-                methods: {
-                    searchMatches(node) {
-                        return app && node.type.toLowerCase().indexOf(app.searchType.toLowerCase()) >= 0;
-                    },
-                },
-            });
+            // Shows generic nodes, used as a fallback
+            class DefaultNodeView extends React.Component {
+                render() {
+                    let node = this.props.node;
+                    let type = types[node.type];
+                    let idElem = <b>{node.id}</b>;
+                    if (node.type === 'builtin://Application') {
+                        idElem = <a href={'./?app=' + node.id}>{idElem}</a>;
+                    }
+
+                    function Links(props) {
+                        if (props.links.length === 0) {
+                            return null;
+                        }
+                        return <li>{props.name}
+                            <ul>{props.links.map((link) =>
+                                <li key={link}><a href={'#' + link}>{link}</a></li>)}
+                            </ul>
+                        </li>;
+                    }
+
+                    let linkElem = <Links name="Links" links={node.links} />;
+                    let backlinks = imports.graph.getBacklinksFor(node.id);
+                    let backlinkElem = <Links name="Backlinks" links={backlinks} />;
+                    return <div id={node.id}>
+                        {idElem} - {type.name}
+                        <ul>
+                            {linkElem}
+                            {backlinkElem}
+                            {Object.keys(type.fields).map((key) =>
+                                <li key={key}>{key}: {node[key].toString()}</li>
+                            )}
+                        </ul>
+                    </div>;
+                }
+            }
+
+            class TweetView extends React.Component {
+                render() {
+                    let tweet = this.props.node;
+                    return <div>
+                        <a href={tweet.url()}>{ this.formatTime(tweet) }</a>
+                        <div>{this.htmlEncode(tweet.text)}</div>
+                    </div>;
+                }
+
+                htmlEncode(str) {
+                    let ret = [];
+                    for (let elem of str.split('\n')) {
+                        if (ret.length > 0) {
+                            ret.push(<br key={ret.length}/>);
+                        }
+                        ret.push(elem);
+                    }
+                    return ret;
+                }
+                formatTime(tweet) {
+                    let date = new Date(tweet.time);
+                    return date.toLocaleString();
+                }
+            }
+
+            let viewTable = {
+                'preload://Tweet': TweetView,
+            };
+            class NodeViewer extends React.Component {
+                render() {
+                    let View = viewTable[this.props.node.type] || DefaultNodeView;
+                    return <View node={this.props.node} />;
+                }
+            }
+
+            class App extends React.Component {
+                constructor(props) {
+                    super(props);
+                    this.state = {
+                        searchType: '',
+                    }
+
+                    this.searchChanged = this.searchChanged.bind(this);
+                }
+                render() {
+                    let contents = [];
+                    for (let node of this.props.nodes) {
+                        if (this.searchMatches(node)) {
+                            contents.push(<li key={node.id}>
+                                <NodeViewer node={node} />
+                            </li>);
+                        }
+                        if (contents.length > 100) {
+                            // todo: for real
+                            break;
+                        }
+                    }
+                    return <div>
+                        <h3>Search</h3>
+                        <input value={this.state.searchType} onChange={this.searchChanged} />
+                        <h3>Nodes</h3>
+                        <ul>{contents}</ul>
+                    </div>;
+                }
+
+                searchMatches(node) {
+                    return node.type.toLowerCase().indexOf(this.state.searchType.toLowerCase()) >= 0;
+                }
+                searchChanged(event) {
+                    this.setState({searchType: event.target.value});
+                }
+            }
+
+            let nodes = imports.graph.loadAllNodes();
+            let app = <App nodes={nodes} />;
+            ReactDOM.render(app, document.getElementById('app'));
         },
     }; }
 };
@@ -861,7 +940,7 @@ preload['preload://tweet-searcher'] = {
 
 // Editor for CommandDescs
 preload['preload://CommandEditor'] = {
-    type: 'builtin://UI',
+    type: 'builtin://VueUI',
     imports: {
         graph: 'builtin://Graph',
     },
@@ -1042,79 +1121,15 @@ preload['preload://note-editor'] = {
     },
     initFunc(imports) { return {
         init() {
-            // Experimenting with React, clean up the architecture here later on
-
-            let types = imports.graph.getTypeNodes();
-
-            // Shows generic nodes, used as a fallback
-            class DefaultNodeView extends React.Component {
-                render() {
-                    let node = this.props.node;
-                    let type = types[node.type];
-                    let contents = [];
-                    for (let key of Object.keys(type.fields)) {
-                        contents.push(<li key={key}>{key}: {node[key].toString()}</li>);
-                    }
-                    return <div>
-                        <b>{node.id}</b> - {types[node.type].name}
-                        <ul>{contents}</ul>
-                    </div>;
-                }
-            }
-
-            class TweetView extends React.Component {
-                render() {
-                    let tweet = this.props.node;
-                    return <div>
-                        <a href={tweet.url()}>{ this.formatTime(tweet) }</a>
-                        <div>{this.htmlEncode(tweet.text)}</div>
-                    </div>;
-                }
-
-                htmlEncode(str) {
-                    let ret = [];
-                    for (let elem of str.split('\n')) {
-                        if (ret.length > 0) {
-                            ret.push(<br key={ret.length}/>);
-                        }
-                        ret.push(elem);
-                    }
-                    return ret;
-                }
-                formatTime(tweet) {
-                    let date = new Date(tweet.time);
-                    return date.toLocaleString();
-                }
-            }
-
-            let viewTable = {
-                'preload://Tweet': TweetView,
-            };
-            class Viewer extends React.Component {
-                render() {
-                    let View = viewTable[this.props.node.type] || DefaultNodeView;
-                    return <View node={this.props.node} />;
-                }
-            }
-
             class App extends React.Component {
                 render() {
-                    let contents = [];
-                    for (let node of this.props.nodes) {
-                        contents.push(<li key={node.id}>
-                            <Viewer node={node} />
-                        </li>);
-                    }
                     return <div>
-                        <h3>React Demo</h3>
-                        <ul>{contents}</ul>
+                        <h3>Coming soon!</h3>
                     </div>;
                 }
             }
 
-            let applications = imports.graph.loadNodesOfType('builtin://Application');
-            let tweets = imports.graph.loadNodesOfType('preload://Tweet');
-            let app = <App nodes={[...applications, ...tweets.slice(0, 100)]} />;
+            let app = <App />;
             ReactDOM.render(app, document.getElementById('app'));
         },
     }; },
@@ -1133,6 +1148,9 @@ for (let id in builtins) {
 
     // auto-populate links for type imports
     if (node.type === 'builtin://Type') {
+        if (node.params === undefined) {
+            node.params = [];
+        }
         for (let ty of Object.keys(node.types)) {
             let loader = node.types[ty];
             if (loader[0] === 'import' && !node.links.includes(loader[1])) {
