@@ -13,3 +13,6 @@ docker-compose.yml
 
 # Built file
 public/bundle.js
+
+# Secrets
+secrets.json

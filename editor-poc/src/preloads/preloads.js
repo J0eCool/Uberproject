@@ -11,6 +11,7 @@ import './note_editor';
 import './tooter';
 import './tweet';
 import './tweet_search';
+import './tweet_sync';
 import './tweetjs_upload';
 
 export { preloads };

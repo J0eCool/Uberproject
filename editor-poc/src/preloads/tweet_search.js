@@ -6,10 +6,13 @@ preloads['preload://tweet-searcher'] = {
     title: 'Tweet Search',
     imports: {
         graph: 'builtin://Graph',
+        tweetSync: 'preload://tweet-sync',
         vue: 'builtin://VueApp',
     },
     initFunc(imports) { return {
         init() {
+            imports.tweetSync.fetchTweetsForUser('CountJ0eCool');
+
             imports.vue.setAppHtml(`
                 <h3>Tweet Search</h3>
                 <div>

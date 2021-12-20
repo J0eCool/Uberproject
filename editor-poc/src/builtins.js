@@ -1,4 +1,5 @@
 import {
+    setNode,
     generateId,
     loadResource,
 } from "./kernel";
@@ -181,7 +182,8 @@ builtins['builtin://CommandDesc'] = {
 builtins['builtin://Graph'] = {
     type: 'builtin://Library',
     initFunc(imports) { return {
-        // Magic: this.nodes and this.backlinks gets set by the kernel
+        // Magic: this.nodes and this.backlinks gets set by kernel
+        // Magic: this.idk is set by script.js
 
         // a raw reference to all the nodes
         // returns Dict<URL, Node>
@@ -229,13 +231,34 @@ builtins['builtin://Graph'] = {
             return this.backlinks[url];
         },
 
+        // Adds a node into the graph and also persists it in storage
         saveNodes(nodes) {
             for (let node of nodes) {
                 let id = generateId();
                 node.id = id;
             }
-            saveNodes(nodes);
+
+            for (let node of nodes) {
+                setNode(node.id, node);
+            }
+        
+            let trans = this.idb.transaction(['nodes'], 'readwrite');
+            trans.onerror = (event) => {
+                console.error('IDB Transaction Error:', event);
+            };
+            let store = trans.objectStore('nodes');
+            for (let node of nodes) {
+                store.add(node);
+        
+                // Trigger a storage event to update other tabs
+                localStorage.setItem(node.id, Date.now());
+            }
         },
+
+        deleteNode(node) {
+            let trans = this.idb.transaction(['nodes'], 'readwrite');
+            trans.objectStore('nodes').delete(node.id);
+        }
 
         // todo: getnode/setnode should live here?
     }; },

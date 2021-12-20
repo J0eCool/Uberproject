@@ -1,28 +1,32 @@
 {
   "name": "uber-editor-poc",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Proof-of-concept for Uberproject editor system",
   "engines": {
     "node": "12.x"
   },
-  "main": "index.js",
+  "main": "server.js",
   "dependencies": {
+    "@babel/standalone": "^7.16.6",
+    "express": "^4.17.2",
+    "node-static": "^0.7.11",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "twitter-api-v2": "^1.8.0"
+  },
+  "devDependencies": {
     "@babel/cli": "^7.16.0",
     "@babel/core": "^7.16.5",
     "@babel/preset-env": "^7.16.5",
     "@babel/preset-react": "^7.16.5",
-    "@babel/standalone": "^7.16.6",
-    "babel-loader": "^8.2.3",
-    "node-static": "^0.7.11",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "babel-loader": "^8.2.3"
   },
-  "devDependencies": {},
   "scripts": {
     "build": "webpack",
     "watch": "webpack --watch",
-    "start": "node index.js"
+    "start": "node server.js",
+    "nodemon": "nodemon server.js"
   },
-  "author": "",
+  "author": "J0eCool",
   "license": "MIT"
 }

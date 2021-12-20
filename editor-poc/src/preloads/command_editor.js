@@ -158,6 +158,8 @@ function addCommand(name, args, ret, code) {
         code,
     };
 }
+
+// this totally stopped working due to modularization, oops
 addCommand('graph', [], 'builtin://Library', `
     return loadResource(builtins['builtin://Graph']);
 `);

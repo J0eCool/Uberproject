@@ -1,3 +1,6 @@
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
+
 import { preloads } from './preloads_core';
 
 // Node viewer - inspect every node in the graph

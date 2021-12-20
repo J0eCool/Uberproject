@@ -31,6 +31,9 @@ idbRequest.onsuccess = (event) => {
         console.error('IDB Error:', event);
     };
 
+    // Magic! Give graph a reference to idb so it can persist things
+    builtins['builtin://Graph'].idb = idb;
+
     // Read all existing node data into memory
     const store = idb.transaction('nodes').objectStore('nodes');
     store.openCursor().onsuccess = (event) => {
@@ -50,30 +53,6 @@ idbRequest.onsuccess = (event) => {
         }
     };
 };
-
-// Adds a node into the graph and also persists it in storage
-function saveNodes(nodes) {
-    for (let node of nodes) {
-        setNode(node.id, node);
-    }
-
-    let trans = idb.transaction(['nodes'], 'readwrite');
-    trans.onerror = (event) => {
-        console.error('IDB Transaction Error:', event);
-    };
-    let store = trans.objectStore('nodes');
-    for (let node of nodes) {
-        store.add(node);
-
-        // Trigger a storage event to update other tabs
-        localStorage.setItem(node.id, Date.now());
-    }
-}
-function saveNode(id, node) {
-    if (node.id !== id) { throw 'no stahp'; }
-    node.id = id;
-    saveNodes([node]);
-}
 
 // Setup storage event listener to sync with edits in other tabs
 // Need to use localStorage to track when a key was updated last,

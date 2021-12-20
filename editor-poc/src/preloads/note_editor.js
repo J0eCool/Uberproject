@@ -1,3 +1,6 @@
+import React from 'react';
+import ReactDOM from 'react-dom';
+
 import { preloads } from './preloads_core';
 
 preloads['preload://note-editor'] = {
@@ -8,12 +11,10 @@ preloads['preload://note-editor'] = {
     },
     initFunc(imports) { return {
         init() {
-            class App extends React.Component {
-                render() {
-                    return <div>
-                        <h3>Coming soon!</h3>
-                    </div>;
-                }
+            function App(props) {
+                return <div>
+                    <h3>Coming soon!</h3>
+                </div>;
             }
 
             let app = <App />;
