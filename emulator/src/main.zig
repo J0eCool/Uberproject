@@ -1,42 +1,97 @@
 const std = @import("std");
-const logInfo = std.log.info;
+const net = @import("net");
+
+const Allocator = std.mem.Allocator;
+const log = std.log.info;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 
+const Expr = union(enum) {
+    literal: i32,
+    binary: struct {
+        op: []const u8,
+        lhs: *Expr,
+        rhs: *Expr,
+    },
+};
 
-fn fib(n: i32) i32 {
-    if (n < 2) {
-        return n;
-    } else {
-        return fib(n - 1) + fib(n - 2);
+fn destroy(allocator: *Allocator, expr: *Expr) void {
+    switch (expr.*) {
+        .literal => {},
+        .binary => |*e| {
+            // recurse to the branches
+            destroy(allocator, e.lhs);
+            destroy(allocator, e.rhs);
+        },
     }
+    // release the memory for this Expr
+    allocator.destroy(expr);
 }
 
-test "fib test" {
-    const cases = .{
-        .{0, 0},
-        .{1, 1},
-        .{2, 1},
-        .{3, 2},
-        .{5, 5},
-        .{7, 13},
-        .{10, 55},
-        .{12, 144},
-    };
-    inline for (cases) |case| {
-        try expectEqual(fib(case[0]), case[1]);
+fn parse(allocator: *Allocator, input: []const u8) !*Expr {
+    const stack_size = 100;
+    var stack: [stack_size]?*Expr = [1]?*Expr{null}**stack_size;
+    var stack_count: u32 = 0;
+
+    var i: u32 = 0;
+    while (i < input.len) : (i += 1) {
+        switch (input[i]) {
+            '0'...'9' => |c| {
+                var next = try allocator.create(Expr);
+                next.* = Expr { .literal = c - '0' };
+                stack[stack_count] = next;
+                stack_count += 1;
+            },
+            ' ' => {},
+            else => {
+                var next = try allocator.create(Expr);
+                next.* = Expr { .binary = .{
+                    .op = input[i..i+1],
+                    .lhs = stack[stack_count-2].?,
+                    .rhs = stack[stack_count-1].?,
+                } };
+                stack[stack_count-2] = next;
+                stack_count -= 1;
+            },
+        }
     }
+    return stack[stack_count-1].?;
 }
 
-pub fn main() anyerror!void {
-    const x: u32 = @as(u32, 5);
-    const nums = [_]i32{0, 1, 2, 3, 5, 7, 10, 15, 20, 40};
-    logInfo("All your codebase are belong to {d}.", .{x});
-    for (nums) |n| {
-        logInfo("fib({d}) = {d}", .{n, fib(n)});
+const RuntimeError = error {
+    UnknownOp,
+};
+
+fn eval(expr: *const Expr) RuntimeError!i32 {
+    switch (expr.*) {
+        .literal => |val| return val,
+        .binary => |e| {
+            const lhs = try eval(e.lhs);
+            const rhs = try eval(e.rhs);
+            if (std.mem.eql(u8, e.op, "+")) {
+                return lhs + rhs;
+            }
+            if (std.mem.eql(u8, e.op, "-")) {
+                return lhs - rhs;
+            }
+            return RuntimeError.UnknownOp;
+        },
     }
+    unreachable;
 }
 
-test "basic test" {
-    try std.testing.expectEqual(10, 3 + 7);
+fn curl(addr: []const u8) !void {
+    log("Curling {s}", .{addr});
+}
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = &gpa.allocator();
+
+    try curl("www.google.com");
+    const ast = try parse(allocator, "2 4 + 5 -");
+    defer destroy(allocator, ast);
+    log("baba booey: {}", .{ast});
+    log("baba booey: {}", .{eval(ast)});
 }
