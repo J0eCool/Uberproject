@@ -2,6 +2,7 @@ const std = @import("std");
 const net = @import("net");
 
 const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;
 const log = std.log.info;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -13,25 +14,24 @@ const Expr = union(enum) {
         lhs: *Expr,
         rhs: *Expr,
     },
+
+    fn destroy(expr: *Expr, allocator: *Allocator) void {
+        switch (expr.*) {
+            .literal => {},
+            .binary => |*e| {
+                // recurse to the branches
+                e.lhs.destroy(allocator);
+                e.rhs.destroy(allocator);
+            },
+        }
+        // release the memory for this Expr
+        allocator.destroy(expr);
+    }
 };
 
-fn destroy(allocator: *Allocator, expr: *Expr) void {
-    switch (expr.*) {
-        .literal => {},
-        .binary => |*e| {
-            // recurse to the branches
-            destroy(allocator, e.lhs);
-            destroy(allocator, e.rhs);
-        },
-    }
-    // release the memory for this Expr
-    allocator.destroy(expr);
-}
-
 fn parse(allocator: *Allocator, input: []const u8) !*Expr {
-    const stack_size = 100;
-    var stack: [stack_size]?*Expr = [1]?*Expr{null}**stack_size;
-    var stack_count: u32 = 0;
+    var stack = ArrayList(*Expr).init(allocator.*);
+    defer stack.deinit();
 
     var i: u32 = 0;
     while (i < input.len) : (i += 1) {
@@ -39,23 +39,23 @@ fn parse(allocator: *Allocator, input: []const u8) !*Expr {
             '0'...'9' => |c| {
                 var next = try allocator.create(Expr);
                 next.* = Expr { .literal = c - '0' };
-                stack[stack_count] = next;
-                stack_count += 1;
+                try stack.append(next);
             },
             ' ' => {},
             else => {
                 var next = try allocator.create(Expr);
+                const rhs = stack.pop();
+                const lhs = stack.pop();
                 next.* = Expr { .binary = .{
                     .op = input[i..i+1],
-                    .lhs = stack[stack_count-2].?,
-                    .rhs = stack[stack_count-1].?,
+                    .lhs = lhs,
+                    .rhs = rhs,
                 } };
-                stack[stack_count-2] = next;
-                stack_count -= 1;
+                try stack.append(next);
             },
         }
     }
-    return stack[stack_count-1].?;
+    return stack.items[stack.items.len-1];
 }
 
 const RuntimeError = error {
@@ -77,7 +77,6 @@ fn eval(expr: *const Expr) RuntimeError!i32 {
             return RuntimeError.UnknownOp;
         },
     }
-    unreachable;
 }
 
 fn curl(addr: []const u8) !void {
@@ -91,7 +90,7 @@ pub fn main() !void {
 
     try curl("www.google.com");
     const ast = try parse(allocator, "2 4 + 5 -");
-    defer destroy(allocator, ast);
+    defer ast.destroy(allocator);
     log("baba booey: {}", .{ast});
     log("baba booey: {}", .{eval(ast)});
 }
