@@ -51,7 +51,7 @@ pub fn parse(allocator: *Allocator, input: []const u8) !*Expr {
             },
         }
     }
-    return stack.items[stack.items.len-1];
+    return stack.pop();
 }
 
 pub const RuntimeError = error {

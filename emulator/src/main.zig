@@ -1,5 +1,5 @@
 const std = @import("std");
-const net = @import("net");
+const builtin = @import("builtin");
 
 const stack = @import("stack_calc.zig");
 
@@ -8,8 +8,12 @@ const log = std.log.info;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 
-fn curl(addr: []const u8) !void {
-    log("Curling {s}", .{addr});
+fn getLine(reader: anytype, buffer: []u8) !?[]const u8 {
+    var line: []const u8 = (try reader.readUntilDelimiterOrEof(buffer, '\n')) orelse return null;
+    if (builtin.os.tag == .windows) {
+        line = std.mem.trimRight(u8, line, "\r");
+    }
+    return line;
 }
 
 pub fn main() !void {
@@ -17,9 +21,21 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = &gpa.allocator();
 
-    try curl("www.google.com");
-    const ast = try stack.parse(allocator, "2 4 + 5 -");
-    defer ast.destroy(allocator);
-    log("baba booey: {}", .{ast});
-    log("baba booey: {}", .{stack.eval(ast)});
+    const stdout = std.io.getStdOut();
+    const writer = stdout.writer();
+    const stdin = std.io.getStdIn();
+    const reader = stdin.reader();
+
+    var buffer: [1024]u8 = undefined;
+    while (true) {
+        _ = try writer.write("$> ");
+        const line = (try getLine(reader, &buffer)).?;
+        if (line.len == 0) {
+            break;
+        }
+        const expr = try stack.parse(allocator, line);
+        defer expr.destroy(allocator);
+        try writer.print(" = {}\n", .{stack.eval(expr)});
+    }
+    _ = try writer.write("Finished.\n");
 }
