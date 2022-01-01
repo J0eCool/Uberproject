@@ -3,6 +3,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
+const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
+
 pub const Expr = union(enum) {
     literal: i32,
     binary: struct {
@@ -11,7 +14,7 @@ pub const Expr = union(enum) {
         rhs: *Expr,
     },
 
-    pub fn destroy(expr: *Expr, allocator: *Allocator) void {
+    pub fn destroy(expr: *Expr, allocator: *const Allocator) void {
         switch (expr.*) {
             .literal => {},
             .binary => |*e| {
@@ -25,7 +28,7 @@ pub const Expr = union(enum) {
     }
 };
 
-pub fn parse(allocator: *Allocator, input: []const u8) !*Expr {
+pub fn parse(allocator: *const Allocator, input: []const u8) !*Expr {
     var stack = ArrayList(*Expr).init(allocator.*);
     defer stack.deinit();
 
@@ -73,4 +76,16 @@ pub fn eval(expr: *const Expr) RuntimeError!i32 {
             return RuntimeError.UnknownOp;
         },
     }
+}
+
+fn exec(allocator: *const Allocator, input: []const u8) !i32 {
+    const expr = try parse(allocator, input);
+    defer expr.destroy(allocator);
+    return eval(expr);
+}
+
+test "stack_calc tests" {
+    const allocator = &std.testing.allocator;
+    try expectEqual(2, exec(allocator, "1 1 +"));
+    // try expectEqual(RuntimeError.UnknownOp, exec(allocator, "2 2 *"));
 }
