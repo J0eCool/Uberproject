@@ -3,9 +3,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
-const expect = std.testing.expect;
-const expectEqual = std.testing.expectEqual;
-
 pub const Expr = union(enum) {
     literal: i32,
     binary: struct {
@@ -84,8 +81,14 @@ fn exec(allocator: *const Allocator, input: []const u8) !i32 {
     return eval(expr);
 }
 
+/// Wrapper for std.testing.expectEqual to avoid problems with imprecise type matching
+/// see https://github.com/ziglang/zig/issues/4437
+fn expectEqual(expected: anytype, actual: anytype) !void {
+    try std.testing.expectEqual(@as(@TypeOf(actual), expected), actual);
+}
+
 test "stack_calc tests" {
     const allocator = &std.testing.allocator;
     try expectEqual(2, exec(allocator, "1 1 +"));
-    // try expectEqual(RuntimeError.UnknownOp, exec(allocator, "2 2 *"));
+    try expectEqual(RuntimeError.UnknownOp, exec(allocator, "2 2 *"));
 }
