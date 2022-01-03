@@ -8,7 +8,8 @@ preloads['preload://tweet-sync'] = {
     },
     initFunc(imports) { return {
         // fetches the latest tweets for a user and adds new ones to the graph
-        fetchTweetsForUser(username) {
+        fetchTweetsForUser(username, callback) {
+            console.log('Fetching tweets for', username);
             // Check already existing tweets; don't fetch more than we need to,
             // and don't store duplicate tweets
             let oldTweets = imports.graph.loadNodesOfType('preload://Tweet');
@@ -55,7 +56,13 @@ preloads['preload://tweet-sync'] = {
                     }
                     tweets.push(tweet);
                 }
-                imports.graph.saveNodes(tweets);
+                if (tweets.length > 0) {
+                    console.log('found', tweets.length, 'new tweets');
+                    imports.graph.saveNodes(tweets);
+                    if (callback) {
+                        callback();
+                    }
+                }
             });
         },
 

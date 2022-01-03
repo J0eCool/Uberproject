@@ -11,7 +11,23 @@ preloads['preload://tweet-searcher'] = {
     },
     initFunc(imports) { return {
         init() {
-            imports.tweetSync.fetchTweetsForUser('CountJ0eCool');
+            let self = this;
+            let tweets = [];
+            const load = () => {
+                tweets.length = 0;
+                tweets.unshift(...imports.graph.loadNodesOfType('preload://Tweet'));
+                // sort tweets in descending time order
+                tweets.sort((a, b) => b.time - a.time);
+
+                // update vue
+                if (self.app) {
+                    self.app.searchChanged();
+                }
+            };
+            const sync = () => imports.tweetSync.fetchTweetsForUser('CountJ0eCool', load);
+            load();
+            sync();
+            setInterval(sync, 60 * 1000);
 
             imports.vue.setAppHtml(`
                 <h3>Tweet Search</h3>
@@ -32,8 +48,6 @@ preloads['preload://tweet-searcher'] = {
                 </ul>
             `);
 
-            let tweets = imports.graph.loadNodesOfType('preload://Tweet');
-            let self = this;
             self.resultsPerPage = 25;
             self.app = imports.vue.newApp({
                 el: '#app',
