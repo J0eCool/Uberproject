@@ -84,6 +84,26 @@ fn exec(allocator: *const Allocator, input: []const u8) !i32 {
     return eval(expr);
 }
 
+pub fn repl(allocator: *const Allocator) !void {
+    const stdout = std.io.getStdOut();
+    const writer = stdout.writer();
+    const stdin = std.io.getStdIn();
+    const reader = stdin.reader();
+
+    var buffer: [1024]u8 = undefined;
+    while (true) {
+        _ = try writer.write("$> ");
+        const line = (try util.getLine(reader, &buffer)) orelse break;
+        if (line.len == 0) {
+            break;
+        }
+        const expr = try parse(allocator, line);
+        defer expr.destroy(allocator);
+        try writer.print(" = {}\n", .{eval(expr)});
+    }
+    _ = try writer.write("Finished.\n");
+}
+
 test "stack_calc tests" {
     const allocator = &std.testing.allocator;
     try expectEqual(2, exec(allocator, "1 1 +"));

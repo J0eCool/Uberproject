@@ -1,5 +1,6 @@
 const std = @import("std");
 const math = std.math;
+const builtin = @import("builtin");
 
 /// Wrapper for std.testing.expectEqual to avoid problems with imprecise type matching
 /// see https://github.com/ziglang/zig/issues/4437
@@ -55,4 +56,13 @@ test "util.floor" {
     try expectEqual(RoundingError.TooBig, floor(i32, 1e55));
 
     try expectEqual(f32, @TypeOf(floor(f32, 1.5)));
+}
+
+/// Reads a line of input from a reader; uses a buffer for storage but returns a slice (or null)
+pub fn getLine(reader: anytype, buffer: []u8) !?[]const u8 {
+    var line: []const u8 = (try reader.readUntilDelimiterOrEof(buffer, '\n')) orelse return null;
+    if (builtin.os.tag == .windows) {
+        line = std.mem.trimRight(u8, line, "\r");
+    }
+    return line;
 }
