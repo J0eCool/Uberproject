@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 const stack = @import("stack_calc.zig");
+const util = @import("util.zig");
 
 const Allocator = std.mem.Allocator;
 const log = std.log.info;
@@ -23,6 +24,7 @@ pub fn main() !void {
     const writer = stdout.writer();
     const stdin = std.io.getStdIn();
     const reader = stdin.reader();
+    std.math.round(1.5);
 
     var buffer: [1024]u8 = undefined;
     while (true) {
@@ -40,4 +42,5 @@ pub fn main() !void {
 
 test {
     _ = stack;
+    _ = util;
 }

@@ -1,5 +1,8 @@
 const std = @import("std");
 
+const util = @import("util.zig");
+const expectEqual = util.expectEqual;
+
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
@@ -79,12 +82,6 @@ fn exec(allocator: *const Allocator, input: []const u8) !i32 {
     const expr = try parse(allocator, input);
     defer expr.destroy(allocator);
     return eval(expr);
-}
-
-/// Wrapper for std.testing.expectEqual to avoid problems with imprecise type matching
-/// see https://github.com/ziglang/zig/issues/4437
-fn expectEqual(expected: anytype, actual: anytype) !void {
-    try std.testing.expectEqual(@as(@TypeOf(actual), expected), actual);
 }
 
 test "stack_calc tests" {
