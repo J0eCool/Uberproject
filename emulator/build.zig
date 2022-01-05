@@ -14,6 +14,15 @@ pub fn build(b: *std.build.Builder) void {
     const exe = b.addExecutable("emulator", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
+
+    // just hardcode this for now, screw it
+    const sdl_path = "C:\\Programming\\SDL2-2.0.14\\x86_64-w64-mingw32\\";
+    exe.addIncludeDir(sdl_path ++ "include\\SDL2");
+    exe.addLibPath(sdl_path ++ "lib");
+    b.installBinFile(sdl_path ++ "bin\\SDL2.dll", "SDL2.dll");
+    exe.linkSystemLibrary("sdl2");
+
+    exe.linkLibC();
     exe.install();
 
     const run_cmd = exe.run();
