@@ -1,5 +1,4 @@
-/// An SDL wrapper written by hand mostly so that ZLS can give me autocomplete info
-// lol: maybe do this later you dork
+// An SDL wrapper written by hand mostly so that ZLS can give me autocomplete info
 
 /// Shared c import of SDL.h, reuse this so Zig knows the C opaque types match each other
 /// across compilation units
@@ -23,7 +22,6 @@ pub fn quit() void {
     c.SDL_Quit();
 }
 
-// doesn't actually work for reasons I don't care to understand
 // pub const Window = c.SDL_Window;
 
 // pub fn createWindow(title: [*c]const u8, posX: i32, posY: i32, w: i32, h: i32, xx: i32) *Window {

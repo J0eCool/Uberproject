@@ -12,16 +12,14 @@ const log = std.log.info;
 const Box = struct {
     x: f32,
     y: f32,
+    vx: f32,
+    vy: f32,
     w: f32 = 60,
     h: f32 = 60,
 
-    r: f32 = 224,
-    g: f32 = 32,
-    b: f32 = 32,
-
-    fn new(x: f32, y:f32) Box {
-        return Box { .x = x, .y = y };
-    }
+    r: f32 = 0.9,
+    g: f32 = 0.1,
+    b: f32 = 0.1,
 
     fn draw(self: Box, renderer: ?*c.SDL_Renderer) void {
         var rect = c.SDL_Rect{
@@ -31,20 +29,29 @@ const Box = struct {
             .h = @floatToInt(c_int, self.h),
         };
         _ = c.SDL_SetRenderDrawColor(renderer,
-            @floatToInt(u8, self.r),
-            @floatToInt(u8, self.g),
-            @floatToInt(u8, self.b),
+            @floatToInt(u8, 255 * self.r),
+            @floatToInt(u8, 255 * self.g),
+            @floatToInt(u8, 255 * self.b),
             0xff);
         _ = c.SDL_RenderFillRect(renderer, &rect);
     }
 };
 
 fn addRandomBox(boxes: *std.ArrayList(Box), rand: std.rand.Random) !void {
-    const x = rand.float(f32) * 800 + 20;
-    const y = rand.float(f32) * 400 + 20;
-    try boxes.append(Box.new(x, y));
+    var box = Box {
+        .x = rand.float(f32) * 800 + 20,
+        .y = rand.float(f32) * 400 + 20,
+        .vx = rand.floatNorm(f32) * 80,
+        .vy = rand.floatNorm(f32) * 80,
+        .w = rand.floatNorm(f32) * 15 + 40,
+        .h = rand.floatNorm(f32) * 15 + 40,
+    };
+    try boxes.append(box);
 }
 fn removeRandomBox(boxes: *std.ArrayList(Box), rand: std.rand.Random) void {
+    if (boxes.items.len == 0) {
+        return;
+    }
     const idx = rand.int(u32) % boxes.items.len;
     _ = boxes.swapRemove(idx);
 }
@@ -71,13 +78,14 @@ pub fn main() !void {
     var boxes = std.ArrayList(Box).init(allocator);
     defer boxes.deinit();
 
-    var i: i32 = 0;
-    while (i < 5) : (i += 1) {
+    for (util.times(5)) |_| {
         try addRandomBox(&boxes, rand);
     }
 
     var frame: usize = 0;
     mainloop: while (true) {
+        // Input
+
         var sdl_event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&sdl_event) != 0) {
             switch (sdl_event.type) {
@@ -98,7 +106,30 @@ pub fn main() !void {
             }
         }
 
-        _ = c.SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
+        // Update
+
+        const dt = 1.0 / 60.0;
+        for (boxes.items) |*box| {
+            if (box.x < 0) {
+                box.vx = std.math.fabs(box.vx);
+            }
+            if (box.x + box.w > @intToFloat(f32, window.w)) {
+                box.vx = -std.math.fabs(box.vx);
+            }
+            if (box.y < 0) {
+                box.vy = std.math.fabs(box.vy);
+            }
+            if (box.y + box.h > @intToFloat(f32, window.h)) {
+                box.vy = -std.math.fabs(box.vy);
+            }
+            box.x += box.vx * dt;
+            box.y += box.vy * dt;
+            box.draw(renderer);
+        }
+
+        // Render
+
+        _ = c.SDL_SetRenderDrawColor(renderer, 0x10, 0x10, 0x10, 0xff);
         _ = c.SDL_RenderClear(renderer);
 
         for (boxes.items) |box| {

@@ -66,3 +66,19 @@ pub fn getLine(reader: anytype, buffer: []u8) !?[]const u8 {
     }
     return line;
 }
+
+/// For those times when you just want to do something N times in a for loop
+pub fn times(n: usize) []const u0 {
+    return @as([*]u0, undefined)[0..n];
+}
+
+test "util.times" {
+    var x: usize = 0;
+    var y: usize = 0;
+    for (times(10)) |_, i| {
+        x += 1;
+        y += i;
+    }
+    try expectEqual(10, x);
+    try expectEqual(45, y);
+}
