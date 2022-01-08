@@ -12,7 +12,7 @@ const RoundingError = error {
     TooBig,
 };
 
-fn roundType(comptime from: type, comptime to: type) type {
+fn RoundType(comptime from: type, comptime to: type) type {
     switch (@typeInfo(to)) {
         .Float, .ComptimeFloat => return to,
         .Int, .ComptimeInt =>
@@ -24,17 +24,17 @@ fn roundType(comptime from: type, comptime to: type) type {
     }
 }
 
-test "util.roundType" {
-    try expectEqual(RoundingError!i32, roundType(f32, i32));
-    try expectEqual(RoundingError!i32, roundType(comptime_float, i32));
-    try expectEqual(RoundingError!comptime_int, roundType(comptime_float, comptime_int));
+test "util.RoundType" {
+    try expectEqual(RoundingError!i32, RoundType(f32, i32));
+    try expectEqual(RoundingError!i32, RoundType(comptime_float, i32));
+    try expectEqual(RoundingError!comptime_int, RoundType(comptime_float, comptime_int));
 
-    try expectEqual(f32, roundType(f32, f32));
-    try expectEqual(comptime_float, roundType(comptime_float, comptime_float));
-    try expectEqual(comptime_float, roundType(f32, comptime_float));
+    try expectEqual(f32, RoundType(f32, f32));
+    try expectEqual(comptime_float, RoundType(comptime_float, comptime_float));
+    try expectEqual(comptime_float, RoundType(f32, comptime_float));
 }
 
-pub fn floor(comptime T: type, x: anytype) roundType(@TypeOf(x), T) {
+pub fn floor(comptime T: type, x: anytype) RoundType(@TypeOf(x), T) {
     // this is similar to std.math.lossyCast
     const ret =
         if (@TypeOf(x) == comptime_float) math.floor(@as(f64, x))

@@ -8,7 +8,7 @@ pub const Window = struct {
     w: i32,
     h: i32,
 
-    pub fn create(w: i32, h: i32) Window {
+    pub fn init(w: i32, h: i32) Window {
         var window = Window { .w = w, .h = h };
         window.ptr = c.SDL_CreateWindow("Em you later", c.SDL_WINDOWPOS_CENTERED,
             c.SDL_WINDOWPOS_CENTERED, window.w, window.h, 0);
@@ -18,7 +18,7 @@ pub const Window = struct {
         return window;
     }
 
-    pub fn destroy(self: Window) void {
+    pub fn deinit(self: Window) void {
         c.SDL_DestroyRenderer(self.renderer);
         c.SDL_DestroyWindow(self.ptr);
     }

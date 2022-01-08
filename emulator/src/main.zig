@@ -37,24 +37,76 @@ const Box = struct {
     }
 };
 
-fn addRandomBox(boxes: *std.ArrayList(Box), rand: std.rand.Random) !void {
-    var box = Box {
-        .x = rand.float(f32) * 800 + 20,
-        .y = rand.float(f32) * 400 + 20,
-        .vx = rand.floatNorm(f32) * 80,
-        .vy = rand.floatNorm(f32) * 80,
-        .w = rand.floatNorm(f32) * 15 + 40,
-        .h = rand.floatNorm(f32) * 15 + 40,
-    };
-    try boxes.append(box);
-}
-fn removeRandomBox(boxes: *std.ArrayList(Box), rand: std.rand.Random) void {
-    if (boxes.items.len == 0) {
-        return;
+const BoxList = std.ArrayList(Box);
+
+const Scene = struct {
+    window: Window,
+    boxes: BoxList,
+
+    fn init(allocator: Allocator, rand: std.rand.Random) !Scene {
+        var scene = Scene {
+            .window = Window.init(1024, 600),
+            .boxes = std.ArrayList(Box).init(allocator),
+        };
+        for (util.times(5)) |_| {
+            try scene.addRandomBox(rand);
+        }
+        return scene;
     }
-    const idx = rand.int(u32) % boxes.items.len;
-    _ = boxes.swapRemove(idx);
-}
+    fn deinit(self: Scene) void {
+        self.boxes.deinit();
+        self.window.deinit();
+    }
+
+    fn addRandomBox(self: *Scene, rand: std.rand.Random) !void {
+        var box = Box {
+            .x = rand.float(f32) * 800 + 20,
+            .y = rand.float(f32) * 400 + 20,
+            .vx = rand.floatNorm(f32) * 80,
+            .vy = rand.floatNorm(f32) * 80,
+            .w = rand.floatNorm(f32) * 15 + 40,
+            .h = rand.floatNorm(f32) * 15 + 40,
+        };
+        try self.boxes.append(box);
+    }
+    fn removeRandomBox(self: *Scene, rand: std.rand.Random) void {
+        if (self.boxes.items.len == 0) {
+            return;
+        }
+        const idx = rand.int(u32) % self.boxes.items.len;
+        _ = self.boxes.swapRemove(idx);
+    }
+
+    fn update(self: Scene, dt: f32) void {
+        for (self.boxes.items) |*box| {
+            if (box.x < 0) {
+                box.vx = std.math.fabs(box.vx);
+            }
+            if (box.x + box.w > @intToFloat(f32, self.window.w)) {
+                box.vx = -std.math.fabs(box.vx);
+            }
+            if (box.y < 0) {
+                box.vy = std.math.fabs(box.vy);
+            }
+            if (box.y + box.h > @intToFloat(f32, self.window.h)) {
+                box.vy = -std.math.fabs(box.vy);
+            }
+            box.x += box.vx * dt;
+            box.y += box.vy * dt;
+        }
+    }
+
+    fn render(self: Scene) void {
+        _ = c.SDL_SetRenderDrawColor(self.window.renderer, 0x10, 0x10, 0x10, 0xff);
+        _ = c.SDL_RenderClear(self.window.renderer);
+
+        for (self.boxes.items) |box| {
+            box.draw(self.window.renderer);
+        }
+
+        c.SDL_RenderPresent(self.window.renderer);
+    }
+};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -71,21 +123,14 @@ pub fn main() !void {
     sdl.init(sdl.Init.Video);
     defer sdl.quit();
 
-    const window = Window.create(1024, 600);
-    defer window.destroy();
-    const renderer = window.renderer;
+    var scenes = [_]Scene {
+        try Scene.init(allocator, rand),
+        try Scene.init(allocator, rand),
+    };
+    defer for (scenes) |scene| scene.deinit();
 
-    var boxes = std.ArrayList(Box).init(allocator);
-    defer boxes.deinit();
-
-    for (util.times(5)) |_| {
-        try addRandomBox(&boxes, rand);
-    }
-
-    var frame: usize = 0;
     mainloop: while (true) {
         // Input
-
         var sdl_event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&sdl_event) != 0) {
             switch (sdl_event.type) {
@@ -94,10 +139,10 @@ pub fn main() !void {
                     switch (sdl_event.key.keysym.sym) {
                         c.SDLK_ESCAPE => break :mainloop,
                         c.SDLK_e => {
-                            try addRandomBox(&boxes, rand);
+                            try scenes[0].addRandomBox(rand);
                         },
                         c.SDLK_w => {
-                            removeRandomBox(&boxes, rand);
+                            scenes[0].removeRandomBox(rand);
                         },
                         else => {},
                     }
@@ -107,37 +152,15 @@ pub fn main() !void {
         }
 
         // Update
-
         const dt = 1.0 / 60.0;
-        for (boxes.items) |*box| {
-            if (box.x < 0) {
-                box.vx = std.math.fabs(box.vx);
-            }
-            if (box.x + box.w > @intToFloat(f32, window.w)) {
-                box.vx = -std.math.fabs(box.vx);
-            }
-            if (box.y < 0) {
-                box.vy = std.math.fabs(box.vy);
-            }
-            if (box.y + box.h > @intToFloat(f32, window.h)) {
-                box.vy = -std.math.fabs(box.vy);
-            }
-            box.x += box.vx * dt;
-            box.y += box.vy * dt;
-            box.draw(renderer);
+        for (scenes) |*scene| {
+            scene.update(dt);
         }
 
         // Render
-
-        _ = c.SDL_SetRenderDrawColor(renderer, 0x10, 0x10, 0x10, 0xff);
-        _ = c.SDL_RenderClear(renderer);
-
-        for (boxes.items) |box| {
-            box.draw(renderer);
+        for (scenes) |*scene| {
+            scene.render();
         }
-
-        c.SDL_RenderPresent(renderer);
-        frame += 1;
     }
 }
 
