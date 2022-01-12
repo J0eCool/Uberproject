@@ -122,33 +122,49 @@ pub const SceneBox = struct {
         };
     }
     pub fn deinit(self: *SceneBox) void {
+        for (self.scenes.items) |scene| scene.deinit();
         self.scenes.deinit();
     }
 
+    /// Gets a Scene from an SDL window ID ; used for matching events to Scenes
+    fn getSceneFromWindowId(self: *SceneBox, id: usize) !*Scene {
+        for (self.scenes.items) |*scene| {
+            if (scene.window.id == id) {
+                return scene;
+            }
+        }
+        return error.WindowNotFound;
+    }
+
     pub fn run(self: *SceneBox) !void {
-        var scenes = [_]Scene {
-            try Scene.init("Window 1", self.allocator, self.rand),
-            try Scene.init("window 2", self.allocator, self.rand),
-        };
-        defer for (scenes) |scene| scene.deinit();
+        try self.scenes.append(try Scene.init("Root", self.allocator, self.rand));
 
         mainloop: while (true) {
             // Input
-            var sdl_event: c.SDL_Event = undefined;
-            while (c.SDL_PollEvent(&sdl_event) != 0) {
-                switch (sdl_event.type) {
+            var event: c.SDL_Event = undefined;
+            while (c.SDL_PollEvent(&event) != 0) {
+                switch (event.type) {
                     c.SDL_QUIT => break :mainloop,
-                    c.SDL_KEYDOWN => {
-                        switch (sdl_event.key.keysym.sym) {
-                            c.SDLK_ESCAPE => break :mainloop,
-                            c.SDLK_e => {
-                                try scenes[0].addRandomBox(self.rand);
-                            },
-                            c.SDLK_w => {
-                                scenes[0].removeRandomBox(self.rand);
-                            },
-                            else => {},
-                        }
+                    c.SDL_WINDOWEVENT => switch (event.window.event) {
+                        c.SDL_WINDOWEVENT_SIZE_CHANGED => {
+                            const scene = try self.getSceneFromWindowId(event.window.windowID);
+                            scene.window.w = event.window.data1;
+                            scene.window.h = event.window.data2;
+                        },
+                        else => {},
+                    },
+                    c.SDL_KEYDOWN => switch (event.key.keysym.sym) {
+                        c.SDLK_ESCAPE => break :mainloop,
+                        c.SDLK_e => {
+                            try self.scenes.items[0].addRandomBox(self.rand);
+                        },
+                        c.SDLK_w => {
+                            self.scenes.items[0].removeRandomBox(self.rand);
+                        },
+                        c.SDLK_RETURN => {
+                            try self.scenes.append(try Scene.init("Noot", self.allocator, self.rand));
+                        },
+                        else => {},
                     },
                     else => {},
                 }
@@ -156,12 +172,12 @@ pub const SceneBox = struct {
 
             // Update
             const dt = 1.0 / 60.0;
-            for (scenes) |*scene| {
+            for (self.scenes.items) |*scene| {
                 scene.update(dt);
             }
 
             // Render
-            for (scenes) |*scene| {
+            for (self.scenes.items) |*scene| {
                 scene.render();
             }
         }

@@ -5,6 +5,7 @@ const c = @import("./sdl.zig").c;
 pub const Window = struct {
     ptr: ?*c.SDL_Window = null,
     renderer: ?*c.SDL_Renderer = null,
+    id: usize = 0,
     w: i32,
     h: i32,
 
@@ -14,6 +15,7 @@ pub const Window = struct {
         window.ptr = c.SDL_CreateWindow(title, c.SDL_WINDOWPOS_CENTERED,
             c.SDL_WINDOWPOS_CENTERED, window.w, window.h, flags);
         errdefer c.SDL_DestroyWindow(window.ptr);
+        window.id = c.SDL_GetWindowID(window.ptr);
 
         window.renderer = c.SDL_CreateRenderer(window.ptr, 0, c.SDL_RENDERER_PRESENTVSYNC);
         return window;
