@@ -22,6 +22,8 @@ pub fn build(b: *std.build.Builder) void {
     b.installBinFile(sdl_path ++ "bin\\SDL2.dll", "SDL2.dll");
     exe.linkSystemLibrary("sdl2");
 
+    exe.linkSystemLibrary("opengl32");
+
     exe.linkLibC();
     exe.install();
 

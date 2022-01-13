@@ -1,5 +1,6 @@
 /// Abstraction for an open Window to render to
 
+const std = @import("std");
 const c = @import("./sdl.zig").c;
 
 pub const Window = struct {
@@ -16,8 +17,9 @@ pub const Window = struct {
             c.SDL_WINDOWPOS_CENTERED, window.w, window.h, flags);
         errdefer c.SDL_DestroyWindow(window.ptr);
         window.id = c.SDL_GetWindowID(window.ptr);
-
         window.renderer = c.SDL_CreateRenderer(window.ptr, 0, c.SDL_RENDERER_PRESENTVSYNC);
+
+        std.log.debug("Opened window \"{s}\" with id={}", .{title, window.id});
         return window;
     }
 

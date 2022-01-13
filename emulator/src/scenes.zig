@@ -114,6 +114,8 @@ pub const SceneBox = struct {
     allocator: Allocator,
     scenes: ArrayList(Scene),
     rand: std.rand.Random,
+    shouldQuit: bool = false,
+
     pub fn init(allocator: Allocator, rand: std.rand.Random) SceneBox {
         return SceneBox {
             .allocator = allocator,
@@ -126,49 +128,61 @@ pub const SceneBox = struct {
         self.scenes.deinit();
     }
 
-    /// Gets a Scene from an SDL window ID ; used for matching events to Scenes
-    fn getSceneFromWindowId(self: *SceneBox, id: usize) !*Scene {
-        for (self.scenes.items) |*scene| {
+    /// Gets a Scene index from an SDL window ID ; used for matching events to Scenes
+    /// Returns an index so we can modify the list if need be
+    fn getSceneIndexFromWindowId(self: *SceneBox, id: usize) !usize {
+        for (self.scenes.items) |scene, i| {
             if (scene.window.id == id) {
-                return scene;
+                return i;
             }
         }
         return error.WindowNotFound;
     }
 
-    pub fn run(self: *SceneBox) !void {
-        try self.scenes.append(try Scene.init("Root", self.allocator, self.rand));
-
-        mainloop: while (true) {
-            // Input
-            var event: c.SDL_Event = undefined;
-            while (c.SDL_PollEvent(&event) != 0) {
-                switch (event.type) {
-                    c.SDL_QUIT => break :mainloop,
-                    c.SDL_WINDOWEVENT => switch (event.window.event) {
+    fn handleInput(self: *SceneBox) !void {
+        var event: c.SDL_Event = undefined;
+        while (c.SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
+                // c.SDL_QUIT => break :mainloop,
+                c.SDL_WINDOWEVENT => {
+                    const idx = self.getSceneIndexFromWindowId(event.window.windowID) catch continue;
+                    const scene = &self.scenes.items[idx];
+                    switch (event.window.event) {
+                        c.SDL_WINDOWEVENT_CLOSE => {
+                            scene.deinit();
+                            _ = self.scenes.swapRemove(idx);
+                        },
                         c.SDL_WINDOWEVENT_SIZE_CHANGED => {
-                            const scene = try self.getSceneFromWindowId(event.window.windowID);
                             scene.window.w = event.window.data1;
                             scene.window.h = event.window.data2;
                         },
                         else => {},
+                    }
+                },
+                c.SDL_KEYDOWN => switch (event.key.keysym.sym) {
+                    c.SDLK_ESCAPE => self.shouldQuit = true,
+                    c.SDLK_e => {
+                        try self.scenes.items[0].addRandomBox(self.rand);
                     },
-                    c.SDL_KEYDOWN => switch (event.key.keysym.sym) {
-                        c.SDLK_ESCAPE => break :mainloop,
-                        c.SDLK_e => {
-                            try self.scenes.items[0].addRandomBox(self.rand);
-                        },
-                        c.SDLK_w => {
-                            self.scenes.items[0].removeRandomBox(self.rand);
-                        },
-                        c.SDLK_RETURN => {
-                            try self.scenes.append(try Scene.init("Noot", self.allocator, self.rand));
-                        },
-                        else => {},
+                    c.SDLK_w => {
+                        self.scenes.items[0].removeRandomBox(self.rand);
+                    },
+                    c.SDLK_RETURN => {
+                        try self.scenes.append(try Scene.init("Noot", self.allocator, self.rand));
                     },
                     else => {},
-                }
+                },
+                else => {},
             }
+        }
+    }
+
+    pub fn run(self: *SceneBox) !void {
+        try self.scenes.append(try Scene.init("Root", self.allocator, self.rand));
+
+        while (!self.shouldQuit and self.scenes.items.len > 0) {
+            // Input
+            try self.handleInput();
 
             // Update
             const dt = 1.0 / 60.0;
