@@ -22,6 +22,15 @@ pub fn build(b: *std.build.Builder) void {
     b.installBinFile(sdl_path ++ "bin\\SDL2.dll", "SDL2.dll");
     exe.linkSystemLibrary("sdl2");
 
+    // OpenGL - doesn't work at the moment
+    // Epoxy is an OpenGL loader, I'm not sure how to get Zig to link libepoxy.dll.a
+    // We don't need to use epoxy, but we do need some GL loading library
+    // for reference: https://www.khronos.org/opengl/wiki/OpenGL_Loading_Library
+    // Alternatively we could go for a zig-based wrapper
+    // see: https://github.com/prime31/zig-renderkit
+    const epoxy_path = "C:\\";
+    exe.addIncludeDir(epoxy_path ++ "include");
+    exe.addLibPath(epoxy_path ++ "lib");
     exe.linkSystemLibrary("opengl32");
 
     exe.linkLibC();

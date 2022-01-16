@@ -1,6 +1,7 @@
 const std = @import("std");
-const sdl = @import("./sdl.zig");
-const c = sdl.c;
+const c = @import("./sdl.zig").c;
+const gl = @import("./opengl.zig");
+const g = gl.c;
 
 const stack = @import("stack_calc.zig");
 const util = @import("util.zig");
@@ -43,11 +44,16 @@ const BoxList = ArrayList(Box);
 pub const Scene = struct {
     window: Window,
     boxes: BoxList,
+    program: gl.Program,
 
     fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random) !Scene {
+        const vert = try gl.loadShader(g.GL_VERTEX_SHADER, "sayder");
+        const frag = try gl.loadShader(g.GL_FRAGMENT_SHADER, "sayder");
+
         var scene = Scene {
             .window = Window.init(title, 1024, 600),
             .boxes = ArrayList(Box).init(allocator),
+            .program = try gl.Program.init(vert, frag),
         };
         for (util.times(5)) |_| {
             try scene.addRandomBox(rand);
@@ -98,14 +104,16 @@ pub const Scene = struct {
     }
 
     fn render(self: Scene) void {
-        _ = c.SDL_SetRenderDrawColor(self.window.renderer, 0x10, 0x10, 0x10, 0xff);
-        _ = c.SDL_RenderClear(self.window.renderer);
+        g.glViewport(0, 0, self.window.w, self.window.h);
+        g.glClearColor(0.1, 0.12, 0.15, 1.0);
+        g.glClear(g.GL_COLOR_BUFFER_BIT | g.GL_DEPTH_BUFFER_BIT);
 
         for (self.boxes.items) |box| {
             box.draw(self.window.renderer);
         }
 
-        c.SDL_RenderPresent(self.window.renderer);
+        // c.SDL_RenderPresent(self.window.renderer);
+        c.SDL_GL_SwapWindow(self.window.ptr);
     }
 };
 
