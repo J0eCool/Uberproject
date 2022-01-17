@@ -14,26 +14,24 @@ const log = std.log.info;
 
 const BoxList = ArrayList(gfx.Box);
 
-fn ProgramInfo(comptime selfT: type) type {
-    return struct {
-        update: fn(self: selfT, dt: f32) void,
-        // draw: fn(selfT) void,
-    };
-}
-
 pub const Scene = struct {
     const Self = @This();
+    const Info = struct {
+        update: fn(self: Self, dt: f32) void,
+        // draw: fn(Self) void,
+    };
+
 
     window: Window,
     boxes: BoxList,
-    program: ProgramInfo(Self),
+    vtable: Info,
 
     fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random,
-            program: ProgramInfo(Self)) !Self {
+            program: Info) !Self {
         var scene = Self {
             .window = Window.init(title, 1024, 600),
             .boxes = BoxList.init(allocator),
-            .program = program,
+            .vtable = program,
         };
         for (util.times(5)) |_| {
             try scene.addRandomBox(rand);
@@ -71,7 +69,7 @@ pub const Scene = struct {
     }
 
     fn update(self: Self, dt: f32) void {
-        self.program.update(self, dt);
+        self.vtable.update(self, dt);
     }
 
     fn render(self: Self) void {
@@ -164,7 +162,7 @@ pub const SceneBox = struct {
                     },
                     c.SDLK_RETURN => {
                         try self.scenes.append(try Scene.init("Noot", self.allocator, self.rand,
-                            ProgramInfo(Scene) {.update = bouncyBox}));
+                            Scene.Info {.update = bouncyBox}));
                     },
                     else => {},
                 },
@@ -175,7 +173,7 @@ pub const SceneBox = struct {
 
     pub fn run(self: *SceneBox) !void {
         try self.scenes.append(try Scene.init("Root", self.allocator, self.rand,
-            ProgramInfo(Scene) {.update = bouncyBox}));
+            Scene.Info {.update = bouncyBox}));
 
         while (!self.shouldQuit and self.scenes.items.len > 0) {
             // Input
