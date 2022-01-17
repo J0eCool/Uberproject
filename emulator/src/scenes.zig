@@ -102,6 +102,16 @@ fn bouncyBox(self: Program, dt: f32) void {
     }
 }
 
+fn circleBox(self: Program, dt: f32) void {
+    const win_size = Vec2.init(@intToFloat(f32, self.window.w),@intToFloat(f32, self.window.h));
+    const win_center = win_size.scale(0.5);
+    for (self.boxes.items) |*box| {
+        const delta = box.pos.sub(win_center).unit();
+        const vel = Vec2.init(delta.y, -delta.x).scale(120);
+        box.pos = box.pos.add(vel.scale(dt));
+    }
+}
+
 /// Holds a bunch of programs, manages their shared state
 pub const SceneBox = struct {
     allocator: Allocator,
@@ -162,7 +172,7 @@ pub const SceneBox = struct {
                     },
                     c.SDLK_RETURN => {
                         try self.programs.append(try Program.init("Noot", self.allocator, self.rand,
-                            Program.Info {.update = bouncyBox}));
+                            Program.Info {.update = circleBox}));
                     },
                     else => {},
                 },
