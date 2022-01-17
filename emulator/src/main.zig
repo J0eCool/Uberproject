@@ -26,7 +26,7 @@ pub fn main() !void {
     sdl.init(sdl.Init.Video);
     defer sdl.quit();
 
-    var scenes = scenes_mod.SceneBox.init(allocator, rand);
+    var scenes = try scenes_mod.SceneBox.init(allocator, rand);
     defer scenes.deinit();
     try scenes.run();
 }

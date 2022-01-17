@@ -6,6 +6,7 @@ const util = @import("./util.zig");
 const Window = @import("./window.zig").Window;
 
 const gfx = @import("./graphics.zig");
+const Input = @import("./input.zig").Input;
 const Vec2 = @import("./vec.zig").Vec2;
 
 const Allocator = std.mem.Allocator;
@@ -18,20 +19,24 @@ const BoxList = ArrayList(gfx.Box);
 pub const Program = struct {
     const Self = @This();
     const Info = struct {
-        update: fn(self: Self, dt: f32) void,
+        update: fn(self: *Self, dt: f32) void,
         // draw: fn(Self) void,
     };
 
     window: Window,
     boxes: BoxList,
     vtable: Info,
+    input: Input,
+    rand: std.rand.Random,
 
     fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random,
             program: Info) !Self {
         var scene = Self {
             .window = Window.init(title, 1024, 600),
             .boxes = BoxList.init(allocator),
+            .input = Input {},
             .vtable = program,
+            .rand = rand,
         };
         for (util.times(5)) |_| {
             try scene.addRandomBox(rand);
@@ -68,7 +73,7 @@ pub const Program = struct {
         _ = self.boxes.swapRemove(idx);
     }
 
-    fn update(self: Self, dt: f32) void {
+    fn update(self: *Self, dt: f32) void {
         self.vtable.update(self, dt);
     }
 
@@ -84,7 +89,14 @@ pub const Program = struct {
     }
 };
 
-fn bouncyBox(self: Program, dt: f32) void {
+fn bouncyBox(self: *Program, dt: f32) void {
+    if (self.input.wasKeyJustPressed('e')) {
+        self.addRandomBox(self.rand) catch {};
+    }
+    if (self.input.wasKeyJustPressed('w')) {
+        self.removeRandomBox(self.rand);
+    }
+
     for (self.boxes.items) |*box| {
         if (box.pos.x < 0) {
             box.vel.x = std.math.fabs(box.vel.x);
@@ -102,7 +114,14 @@ fn bouncyBox(self: Program, dt: f32) void {
     }
 }
 
-fn circleBox(self: Program, dt: f32) void {
+fn circleBox(self: *Program, dt: f32) void {
+    if (self.input.wasKeyJustPressed('e')) {
+        self.addRandomBox(self.rand) catch {};
+    }
+    if (self.input.wasKeyJustPressed('w')) {
+        self.removeRandomBox(self.rand);
+    }
+
     const win_size = Vec2.init(@intToFloat(f32, self.window.w),@intToFloat(f32, self.window.h));
     const win_center = win_size.scale(0.5);
     for (self.boxes.items) |*box| {
@@ -116,16 +135,23 @@ fn circleBox(self: Program, dt: f32) void {
 pub const SceneBox = struct {
     allocator: Allocator,
     programs: ArrayList(Program),
+    focused: *Program,
     rand: std.rand.Random,
     shouldQuit: bool = false,
 
-    pub fn init(allocator: Allocator, rand: std.rand.Random) SceneBox {
-        return SceneBox {
+    pub fn init(allocator: Allocator, rand: std.rand.Random) !SceneBox {
+        var programs = ArrayList(Program).init(allocator);
+        try programs.append(try Program.init("Root", allocator, rand,
+            Program.Info {.update = bouncyBox}));
+        var box = SceneBox {
             .allocator = allocator,
-            .programs = ArrayList(Program).init(allocator),
+            .programs = programs,
+            .focused = &programs.items[0],
             .rand = rand,
         };
+        return box;
     }
+
     pub fn deinit(self: *SceneBox) void {
         for (self.programs.items) |scene| scene.deinit();
         self.programs.deinit();
@@ -143,6 +169,13 @@ pub const SceneBox = struct {
     }
 
     fn handleInput(self: *SceneBox) !void {
+        // update each program's Input
+        for (self.programs.items) |*program| {
+            program.input.startFrame();
+        }
+
+        // poll for events
+        // handle Window-level events here, and pass the rest to the focused window
         var event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&event) != 0) {
             switch (event.type) {
@@ -154,22 +187,26 @@ pub const SceneBox = struct {
                         c.SDL_WINDOWEVENT_CLOSE => {
                             scene.deinit();
                             _ = self.programs.swapRemove(idx);
+                            if (self.programs.items.len == 0) {
+                                return;
+                            }
+                            // We probably immediately get a WINDOWEVENT_FOCUS_GAINED on the
+                            // next window, but I'd rather have NO point in the program where
+                            // self.focused isn't a valid pointer
+                            self.focused = &self.programs.items[idx % self.programs.items.len];
                         },
                         c.SDL_WINDOWEVENT_SIZE_CHANGED => {
                             scene.window.w = event.window.data1;
                             scene.window.h = event.window.data2;
+                        },
+                        c.SDL_WINDOWEVENT_FOCUS_GAINED => {
+                            self.focused = scene;
                         },
                         else => {},
                     }
                 },
                 c.SDL_KEYDOWN => switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => self.shouldQuit = true,
-                    c.SDLK_e => {
-                        try self.programs.items[0].addRandomBox(self.rand);
-                    },
-                    c.SDLK_w => {
-                        self.programs.items[0].removeRandomBox(self.rand);
-                    },
                     c.SDLK_RETURN => {
                         try self.programs.append(try Program.init("Noot", self.allocator, self.rand,
                             Program.Info {.update = circleBox}));
@@ -178,13 +215,11 @@ pub const SceneBox = struct {
                 },
                 else => {},
             }
+            self.focused.input.handleEvent(event);
         }
     }
 
     pub fn run(self: *SceneBox) !void {
-        try self.programs.append(try Program.init("Root", self.allocator, self.rand,
-            Program.Info {.update = bouncyBox}));
-
         while (!self.shouldQuit and self.programs.items.len > 0) {
             // Input
             try self.handleInput();
