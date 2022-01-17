@@ -14,26 +14,38 @@ const log = std.log.info;
 
 const BoxList = ArrayList(gfx.Box);
 
+fn ProgramInfo(comptime selfT: type) type {
+    return struct {
+        update: fn(self: selfT, dt: f32) void,
+        // draw: fn(selfT) void,
+    };
+}
+
 pub const Scene = struct {
+    const Self = @This();
+
     window: Window,
     boxes: BoxList,
+    program: ProgramInfo(Self),
 
-    fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random) !Scene {
-        var scene = Scene {
+    fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random,
+            program: ProgramInfo(Self)) !Self {
+        var scene = Self {
             .window = Window.init(title, 1024, 600),
             .boxes = BoxList.init(allocator),
+            .program = program,
         };
         for (util.times(5)) |_| {
             try scene.addRandomBox(rand);
         }
         return scene;
     }
-    fn deinit(self: Scene) void {
+    fn deinit(self: Self) void {
         self.boxes.deinit();
         self.window.deinit();
     }
 
-    fn addRandomBox(self: *Scene, rand: std.rand.Random) !void {
+    fn addRandomBox(self: *Self, rand: std.rand.Random) !void {
         var box = gfx.Box {
             .pos = Vec2.init(
                 rand.float(f32) * 800 + 20,
@@ -50,7 +62,7 @@ pub const Scene = struct {
         };
         try self.boxes.append(box);
     }
-    fn removeRandomBox(self: *Scene, rand: std.rand.Random) void {
+    fn removeRandomBox(self: *Self, rand: std.rand.Random) void {
         if (self.boxes.items.len == 0) {
             return;
         }
@@ -58,25 +70,11 @@ pub const Scene = struct {
         _ = self.boxes.swapRemove(idx);
     }
 
-    fn update(self: Scene, dt: f32) void {
-        for (self.boxes.items) |*box| {
-            if (box.pos.x < 0) {
-                box.vel.x = std.math.fabs(box.vel.x);
-            }
-            if (box.pos.x + box.size.x > @intToFloat(f32, self.window.w)) {
-                box.vel.x = -std.math.fabs(box.vel.x);
-            }
-            if (box.pos.y < 0) {
-                box.vel.y = std.math.fabs(box.vel.y);
-            }
-            if (box.pos.y + box.size.y > @intToFloat(f32, self.window.h)) {
-                box.vel.y = -std.math.fabs(box.vel.y);
-            }
-            box.pos = box.pos.add(box.vel.scale(dt));
-        }
+    fn update(self: Self, dt: f32) void {
+        self.program.update(self, dt);
     }
 
-    fn render(self: Scene) void {
+    fn render(self: Self) void {
         _ = c.SDL_SetRenderDrawColor(self.window.renderer, 0x10, 0x10, 0x10, 0xff);
         _ = c.SDL_RenderClear(self.window.renderer);
 
@@ -87,6 +85,24 @@ pub const Scene = struct {
         c.SDL_RenderPresent(self.window.renderer);
     }
 };
+
+fn bouncyBox(self: Scene, dt: f32) void {
+    for (self.boxes.items) |*box| {
+        if (box.pos.x < 0) {
+            box.vel.x = std.math.fabs(box.vel.x);
+        }
+        if (box.pos.x + box.size.x > @intToFloat(f32, self.window.w)) {
+            box.vel.x = -std.math.fabs(box.vel.x);
+        }
+        if (box.pos.y < 0) {
+            box.vel.y = std.math.fabs(box.vel.y);
+        }
+        if (box.pos.y + box.size.y > @intToFloat(f32, self.window.h)) {
+            box.vel.y = -std.math.fabs(box.vel.y);
+        }
+        box.pos = box.pos.add(box.vel.scale(dt));
+    }
+}
 
 /// Holds a bunch of scenes, manages their shared state
 pub const SceneBox = struct {
@@ -147,7 +163,8 @@ pub const SceneBox = struct {
                         self.scenes.items[0].removeRandomBox(self.rand);
                     },
                     c.SDLK_RETURN => {
-                        try self.scenes.append(try Scene.init("Noot", self.allocator, self.rand));
+                        try self.scenes.append(try Scene.init("Noot", self.allocator, self.rand,
+                            ProgramInfo(Scene) {.update = bouncyBox}));
                     },
                     else => {},
                 },
@@ -157,7 +174,8 @@ pub const SceneBox = struct {
     }
 
     pub fn run(self: *SceneBox) !void {
-        try self.scenes.append(try Scene.init("Root", self.allocator, self.rand));
+        try self.scenes.append(try Scene.init("Root", self.allocator, self.rand,
+            ProgramInfo(Scene) {.update = bouncyBox}));
 
         while (!self.shouldQuit and self.scenes.items.len > 0) {
             // Input
