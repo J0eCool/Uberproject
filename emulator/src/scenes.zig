@@ -14,13 +14,13 @@ const log = std.log.info;
 
 const BoxList = ArrayList(gfx.Box);
 
-pub const Scene = struct {
+/// Userland programs that run atop the kernel
+pub const Program = struct {
     const Self = @This();
     const Info = struct {
         update: fn(self: Self, dt: f32) void,
         // draw: fn(Self) void,
     };
-
 
     window: Window,
     boxes: BoxList,
@@ -84,7 +84,7 @@ pub const Scene = struct {
     }
 };
 
-fn bouncyBox(self: Scene, dt: f32) void {
+fn bouncyBox(self: Program, dt: f32) void {
     for (self.boxes.items) |*box| {
         if (box.pos.x < 0) {
             box.vel.x = std.math.fabs(box.vel.x);
@@ -102,29 +102,29 @@ fn bouncyBox(self: Scene, dt: f32) void {
     }
 }
 
-/// Holds a bunch of scenes, manages their shared state
+/// Holds a bunch of programs, manages their shared state
 pub const SceneBox = struct {
     allocator: Allocator,
-    scenes: ArrayList(Scene),
+    programs: ArrayList(Program),
     rand: std.rand.Random,
     shouldQuit: bool = false,
 
     pub fn init(allocator: Allocator, rand: std.rand.Random) SceneBox {
         return SceneBox {
             .allocator = allocator,
-            .scenes = ArrayList(Scene).init(allocator),
+            .programs = ArrayList(Program).init(allocator),
             .rand = rand,
         };
     }
     pub fn deinit(self: *SceneBox) void {
-        for (self.scenes.items) |scene| scene.deinit();
-        self.scenes.deinit();
+        for (self.programs.items) |scene| scene.deinit();
+        self.programs.deinit();
     }
 
-    /// Gets a Scene index from an SDL window ID ; used for matching events to Scenes
+    /// Gets a Scene index from an SDL window ID ; used for matching events to programs
     /// Returns an index so we can modify the list if need be
     fn getSceneIndexFromWindowId(self: *SceneBox, id: usize) !usize {
-        for (self.scenes.items) |scene, i| {
+        for (self.programs.items) |scene, i| {
             if (scene.window.id == id) {
                 return i;
             }
@@ -139,11 +139,11 @@ pub const SceneBox = struct {
                 // c.SDL_QUIT => break :mainloop,
                 c.SDL_WINDOWEVENT => {
                     const idx = self.getSceneIndexFromWindowId(event.window.windowID) catch continue;
-                    const scene = &self.scenes.items[idx];
+                    const scene = &self.programs.items[idx];
                     switch (event.window.event) {
                         c.SDL_WINDOWEVENT_CLOSE => {
                             scene.deinit();
-                            _ = self.scenes.swapRemove(idx);
+                            _ = self.programs.swapRemove(idx);
                         },
                         c.SDL_WINDOWEVENT_SIZE_CHANGED => {
                             scene.window.w = event.window.data1;
@@ -155,14 +155,14 @@ pub const SceneBox = struct {
                 c.SDL_KEYDOWN => switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => self.shouldQuit = true,
                     c.SDLK_e => {
-                        try self.scenes.items[0].addRandomBox(self.rand);
+                        try self.programs.items[0].addRandomBox(self.rand);
                     },
                     c.SDLK_w => {
-                        self.scenes.items[0].removeRandomBox(self.rand);
+                        self.programs.items[0].removeRandomBox(self.rand);
                     },
                     c.SDLK_RETURN => {
-                        try self.scenes.append(try Scene.init("Noot", self.allocator, self.rand,
-                            Scene.Info {.update = bouncyBox}));
+                        try self.programs.append(try Program.init("Noot", self.allocator, self.rand,
+                            Program.Info {.update = bouncyBox}));
                     },
                     else => {},
                 },
@@ -172,21 +172,21 @@ pub const SceneBox = struct {
     }
 
     pub fn run(self: *SceneBox) !void {
-        try self.scenes.append(try Scene.init("Root", self.allocator, self.rand,
-            Scene.Info {.update = bouncyBox}));
+        try self.programs.append(try Program.init("Root", self.allocator, self.rand,
+            Program.Info {.update = bouncyBox}));
 
-        while (!self.shouldQuit and self.scenes.items.len > 0) {
+        while (!self.shouldQuit and self.programs.items.len > 0) {
             // Input
             try self.handleInput();
 
             // Update
             const dt = 1.0 / 60.0;
-            for (self.scenes.items) |*scene| {
+            for (self.programs.items) |*scene| {
                 scene.update(dt);
             }
 
             // Render
-            for (self.scenes.items) |*scene| {
+            for (self.programs.items) |*scene| {
                 scene.render();
             }
         }
