@@ -6,7 +6,7 @@ const util = @import("./util.zig");
 const Window = @import("./window.zig").Window;
 
 const gfx = @import("./graphics.zig");
-const Vec2 = gfx.Vec2;
+const Vec2 = @import("./vec.zig").Vec2;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
