@@ -27,7 +27,15 @@ pub const Input = struct {
         switch (event.type) {
             c.SDL_KEYDOWN => {
                 const idx = @intCast(usize, event.key.keysym.sym);
-                self.keys[idx] = KeyState.WentDown;
+                if (idx < n_keys) {
+                    self.keys[idx] = KeyState.WentDown;
+                }
+            },
+            c.SDL_KEYUP => {
+                const idx = @intCast(usize, event.key.keysym.sym);
+                if (idx < n_keys) {
+                    self.keys[idx] = KeyState.WentUp;
+                }
             },
             else => {},
         }

@@ -122,7 +122,7 @@ fn circleBox(self: *Program, dt: f32) void {
         self.removeRandomBox(self.rand);
     }
 
-    const win_size = Vec2.init(@intToFloat(f32, self.window.w),@intToFloat(f32, self.window.h));
+    const win_size = Vec2.init(@intToFloat(f32, self.window.w), @intToFloat(f32, self.window.h));
     const win_center = win_size.scale(0.5);
     for (self.boxes.items) |*box| {
         const delta = box.pos.sub(win_center).unit();
