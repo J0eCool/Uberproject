@@ -1,43 +1,18 @@
 const std = @import("std");
 const c = @import("./sdl.zig").c;
 
-const stack = @import("stack_calc.zig");
-const util = @import("util.zig");
-const Window = @import("window.zig").Window;
+const stack = @import("./stack_calc.zig");
+const util = @import("./util.zig");
+const Window = @import("./window.zig").Window;
+
+const gfx = @import("./graphics.zig");
+const Vec2 = gfx.Vec2;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const log = std.log.info;
 
-const Box = struct {
-    x: f32,
-    y: f32,
-    vx: f32,
-    vy: f32,
-    w: f32 = 60,
-    h: f32 = 60,
-
-    r: f32 = 0.9,
-    g: f32 = 0.1,
-    b: f32 = 0.1,
-
-    fn draw(self: Box, renderer: ?*c.SDL_Renderer) void {
-        var rect = c.SDL_Rect{
-            .x = @floatToInt(c_int, self.x),
-            .y = @floatToInt(c_int, self.y),
-            .w = @floatToInt(c_int, self.w),
-            .h = @floatToInt(c_int, self.h),
-        };
-        _ = c.SDL_SetRenderDrawColor(renderer,
-            @floatToInt(u8, 255 * self.r),
-            @floatToInt(u8, 255 * self.g),
-            @floatToInt(u8, 255 * self.b),
-            0xff);
-        _ = c.SDL_RenderFillRect(renderer, &rect);
-    }
-};
-
-const BoxList = ArrayList(Box);
+const BoxList = ArrayList(gfx.Box);
 
 pub const Scene = struct {
     window: Window,
@@ -46,7 +21,7 @@ pub const Scene = struct {
     fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random) !Scene {
         var scene = Scene {
             .window = Window.init(title, 1024, 600),
-            .boxes = ArrayList(Box).init(allocator),
+            .boxes = BoxList.init(allocator),
         };
         for (util.times(5)) |_| {
             try scene.addRandomBox(rand);
@@ -59,13 +34,19 @@ pub const Scene = struct {
     }
 
     fn addRandomBox(self: *Scene, rand: std.rand.Random) !void {
-        var box = Box {
-            .x = rand.float(f32) * 800 + 20,
-            .y = rand.float(f32) * 400 + 20,
-            .vx = rand.floatNorm(f32) * 80,
-            .vy = rand.floatNorm(f32) * 80,
-            .w = rand.floatNorm(f32) * 15 + 40,
-            .h = rand.floatNorm(f32) * 15 + 40,
+        var box = gfx.Box {
+            .pos = Vec2.init(
+                rand.float(f32) * 800 + 20,
+                rand.float(f32) * 400 + 20,
+            ),
+            .vel = Vec2.init(
+                rand.floatNorm(f32) * 80,
+                rand.floatNorm(f32) * 80,
+            ),
+            .size = Vec2.init(
+                rand.floatNorm(f32) * 15 + 40,
+                rand.floatNorm(f32) * 15 + 40,
+            ),
         };
         try self.boxes.append(box);
     }
@@ -79,20 +60,19 @@ pub const Scene = struct {
 
     fn update(self: Scene, dt: f32) void {
         for (self.boxes.items) |*box| {
-            if (box.x < 0) {
-                box.vx = std.math.fabs(box.vx);
+            if (box.pos.x < 0) {
+                box.vel.x = std.math.fabs(box.vel.x);
             }
-            if (box.x + box.w > @intToFloat(f32, self.window.w)) {
-                box.vx = -std.math.fabs(box.vx);
+            if (box.pos.x + box.size.x > @intToFloat(f32, self.window.w)) {
+                box.vel.x = -std.math.fabs(box.vel.x);
             }
-            if (box.y < 0) {
-                box.vy = std.math.fabs(box.vy);
+            if (box.pos.y < 0) {
+                box.vel.y = std.math.fabs(box.vel.y);
             }
-            if (box.y + box.h > @intToFloat(f32, self.window.h)) {
-                box.vy = -std.math.fabs(box.vy);
+            if (box.pos.y + box.size.y > @intToFloat(f32, self.window.h)) {
+                box.vel.y = -std.math.fabs(box.vel.y);
             }
-            box.x += box.vx * dt;
-            box.y += box.vy * dt;
+            box.pos = box.pos.add(box.vel.scale(dt));
         }
     }
 
