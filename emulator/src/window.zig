@@ -1,9 +1,8 @@
-/// Abstraction for an open Window to render to
-
 const std = @import("std");
 const c = @import("./sdl.zig").c;
 const g = @import("./opengl.zig").c;
 
+/// Holds info for an open Window
 pub const Window = struct {
     ptr: ?*c.SDL_Window = null,
     renderer: ?*c.SDL_Renderer = null,

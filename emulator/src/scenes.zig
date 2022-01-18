@@ -15,8 +15,15 @@ const log = std.log.info;
 
 const BoxList = ArrayList(gfx.Box);
 
-/// Userland programs that run atop the kernel
-pub const Program = struct {
+const Imports = struct {
+    loader: struct {
+        self: *anyopaque,
+        loadProgram: fn(self: *anyopaque, name: []const u8) void,
+    },
+};
+
+/// Runtime representation of userland programs that run atop the kernel
+pub const Process = struct {
     const Self = @This();
     const Info = struct {
         update: fn(self: *Self, dt: f32) void,
@@ -28,14 +35,16 @@ pub const Program = struct {
     vtable: Info,
     input: Input,
     rand: std.rand.Random,
+    imports: Imports,
 
     fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random,
-            program: Info) !Self {
+            program: Info, imports: Imports) !Self {
         var scene = Self {
             .window = Window.init(title, 1024, 600),
             .boxes = BoxList.init(allocator),
             .input = Input {},
             .vtable = program,
+            .imports = imports,
             .rand = rand,
         };
         for (util.times(5)) |_| {
@@ -89,7 +98,7 @@ pub const Program = struct {
     }
 };
 
-fn bouncyBox(self: *Program, dt: f32) void {
+fn bouncyBox(self: *Process, dt: f32) void {
     if (self.input.wasKeyJustPressed('e')) {
         self.addRandomBox(self.rand) catch {};
     }
@@ -114,7 +123,7 @@ fn bouncyBox(self: *Program, dt: f32) void {
     }
 }
 
-fn circleBox(self: *Program, dt: f32) void {
+fn circleBox(self: *Process, dt: f32) void {
     if (self.input.wasKeyJustPressed('e')) {
         self.addRandomBox(self.rand) catch {};
     }
@@ -131,30 +140,80 @@ fn circleBox(self: *Program, dt: f32) void {
     }
 }
 
+const Launcher = struct {
+    fn update(self: *Process, dt: f32) void {
+        _ = dt;
+        const loader = self.imports.loader;
+        if (self.input.wasKeyJustPressed('h')) {
+            std.log.info("I see you :)", .{});
+        }
+        if (self.input.wasKeyJustPressed('n')) {
+            loader.loadProgram(loader.self, "Smeef");
+        }
+        if (self.input.wasKeyJustPressed('m')) {
+            loader.loadProgram(loader.self, "Meef");
+        }
+    }
+
+    const app = Process.Info {
+        .update = Launcher.update,
+    };
+};
+
 /// Holds a bunch of programs, manages their shared state
 pub const SceneBox = struct {
     allocator: Allocator,
-    programs: ArrayList(Program),
-    focused: *Program,
+    programs: ArrayList(Process),
+    /// loaded, waiting for event loop
+    queuedPrograms: ArrayList(Process),
+    focused: ?*Process = null,
     rand: std.rand.Random,
     shouldQuit: bool = false,
 
-    pub fn init(allocator: Allocator, rand: std.rand.Random) !SceneBox {
-        var programs = ArrayList(Program).init(allocator);
-        try programs.append(try Program.init("Root", allocator, rand,
-            Program.Info {.update = bouncyBox}));
-        var box = SceneBox {
+    fn loadProgram(self: *SceneBox, name: []const u8) void {
+        std.log.info("Loading program {s}", .{name});
+        const vtable: Process.Info =
+            if (std.mem.eql(u8, name, "Loader")) Launcher.app
+            else if (std.mem.eql(u8, name, "Smeef")) Process.Info {.update = bouncyBox}
+            else if (std.mem.eql(u8, name, "Meef")) Process.Info {.update = circleBox}
+            else {
+                std.log.err("No program with name {s}", .{name});
+                return;
+            };
+        const imports = Imports {
+            .loader = .{
+                .self = @ptrCast(*anyopaque, self),
+                .loadProgram = @ptrCast(fn(*anyopaque, []const u8) void, SceneBox.loadProgram),
+            },
+        };
+        const program = Process.init(@ptrCast([*c]const u8, name),
+                self.allocator, self.rand, vtable, imports) catch |err| {
+            std.log.err("Failed to init program with err={}", .{err});
+            return;
+        };
+        self.queuedPrograms.append(program) catch {
+            std.log.err("self.programs.append(program)", .{});
+            return;
+        };
+    }
+
+    pub fn init(allocator: Allocator, rand: std.rand.Random) !*SceneBox {
+        var box = try allocator.create(SceneBox);
+        box.* = SceneBox {
             .allocator = allocator,
-            .programs = programs,
-            .focused = &programs.items[0],
+            .programs = ArrayList(Process).init(allocator),
+            .queuedPrograms = ArrayList(Process).init(allocator),
             .rand = rand,
         };
+        box.loadProgram("Loader");
         return box;
     }
 
     pub fn deinit(self: *SceneBox) void {
         for (self.programs.items) |scene| scene.deinit();
         self.programs.deinit();
+        self.queuedPrograms.deinit();
+        self.allocator.destroy(self);
     }
 
     /// Gets a Scene index from an SDL window ID ; used for matching events to programs
@@ -207,20 +266,34 @@ pub const SceneBox = struct {
                 },
                 c.SDL_KEYDOWN => switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => self.shouldQuit = true,
-                    c.SDLK_RETURN => {
-                        try self.programs.append(try Program.init("Noot", self.allocator, self.rand,
-                            Program.Info {.update = circleBox}));
-                    },
                     else => {},
                 },
                 else => {},
             }
-            self.focused.input.handleEvent(event);
+            if (self.focused) |process| {
+                process.input.handleEvent(event);
+            }
         }
     }
 
+    fn keepRunning(self: *SceneBox) bool {
+        if (self.shouldQuit) return false;
+        const n_processes = self.programs.items.len + self.queuedPrograms.items.len;
+        return n_processes > 0;
+    }
+
     pub fn run(self: *SceneBox) !void {
-        while (!self.shouldQuit and self.programs.items.len > 0) {
+        while (self.keepRunning()) {
+            // Add queued programs into the list
+            for (self.queuedPrograms.items) |program| {
+                try self.programs.append(program);
+            }
+            self.queuedPrograms.shrinkRetainingCapacity(0);
+
+            if (self.focused == null) {
+                self.focused = &self.programs.items[0];
+            }
+
             // Input
             try self.handleInput();
 
