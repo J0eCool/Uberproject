@@ -22,23 +22,25 @@ pub const Imports = struct {
     },
 };
 
+/// Static info; a blueprint used to load processes
+pub const Program = struct {
+    update: fn(self: *Process, dt: f32) void,
+    // draw: fn(Self) void,
+};
+
 /// Runtime representation of userland programs that run atop the kernel
 pub const Process = struct {
     const Self = @This();
-    pub const Info = struct {
-        update: fn(self: *Self, dt: f32) void,
-        // draw: fn(Self) void,
-    };
 
     window: Window,
     boxes: BoxList,
-    vtable: Info,
+    vtable: Program,
     input: Input,
     rand: std.rand.Random,
     imports: Imports,
 
     pub fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random,
-            program: Info, imports: Imports) !Self {
+            program: Program, imports: Imports) !Self {
         var scene = Self {
             .window = Window.init(title, 1024, 600),
             .boxes = BoxList.init(allocator),

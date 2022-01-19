@@ -74,7 +74,7 @@ const Launcher = struct {
         }
     }
 
-    const app = Process.Info {
+    const app = process.Program {
         .update = Launcher.update,
     };
 };
@@ -91,10 +91,10 @@ pub const SceneBox = struct {
 
     fn loadProgram(self: *SceneBox, name: []const u8) void {
         std.log.info("Loading program {s}", .{name});
-        const vtable: Process.Info =
+        const vtable: process.Program =
             if (std.mem.eql(u8, name, "Loader")) Launcher.app
-            else if (std.mem.eql(u8, name, "Smeef")) Process.Info {.update = bouncyBox}
-            else if (std.mem.eql(u8, name, "Meef")) Process.Info {.update = circleBox}
+            else if (std.mem.eql(u8, name, "Smeef")) process.Program {.update = bouncyBox}
+            else if (std.mem.eql(u8, name, "Meef")) process.Program {.update = circleBox}
             else {
                 std.log.err("No program with name {s}", .{name});
                 return;
