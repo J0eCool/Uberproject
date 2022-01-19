@@ -17,49 +17,126 @@ const BoxList = ArrayList(gfx.Box);
 const process = @import("./process.zig");
 const Process = process.Process;
 
-fn bouncyBox(self: *Process, dt: f32) void {
-    if (self.input.wasKeyJustPressed('e')) {
-        self.addRandomBox(self.rand) catch {};
+const BoxApp = struct {
+    const Data = struct {
+        boxes: BoxList,
+
+        fn addRandomBox(self: *Data, rand: std.rand.Random) !void {
+            var box = gfx.Box {
+                .pos = Vec2.init(
+                    rand.float(f32) * 800 + 20,
+                    rand.float(f32) * 400 + 20,
+                ),
+                .vel = Vec2.init(
+                    rand.floatNorm(f32) * 80,
+                    rand.floatNorm(f32) * 80,
+                ),
+                .size = Vec2.init(
+                    rand.floatNorm(f32) * 15 + 40,
+                    rand.floatNorm(f32) * 15 + 40,
+                ),
+            };
+            try self.boxes.append(box);
+        }
+        fn removeRandomBox(self: *Data, rand: std.rand.Random) void {
+            if (self.boxes.items.len == 0) {
+                return;
+            }
+            const idx = rand.int(u32) % self.boxes.items.len;
+            _ = self.boxes.swapRemove(idx);
+        }
+    };
+
+    fn init(self: *Process) void {
+        const data = self.getData(Data);
+        data.boxes = BoxList.init(self.allocator);
+        for (util.times(5)) |_| {
+            data.addRandomBox(self.rand) catch {};
+        }
     }
-    if (self.input.wasKeyJustPressed('w')) {
-        self.removeRandomBox(self.rand);
+    fn deinit(self: *Process) void {
+        const data = self.getData(Data);
+        data.boxes.deinit();
     }
 
-    for (self.boxes.items) |*box| {
-        if (box.pos.x < 0) {
-            box.vel.x = std.math.fabs(box.vel.x);
+    fn bouncyBox(self: *Process, dt: f32) void {
+        const data = self.getData(Data);
+        if (self.input.wasKeyJustPressed('e')) {
+            data.addRandomBox(self.rand) catch {};
         }
-        if (box.pos.x + box.size.x > @intToFloat(f32, self.window.w)) {
-            box.vel.x = -std.math.fabs(box.vel.x);
+        if (self.input.wasKeyJustPressed('w')) {
+            data.removeRandomBox(self.rand);
         }
-        if (box.pos.y < 0) {
-            box.vel.y = std.math.fabs(box.vel.y);
-        }
-        if (box.pos.y + box.size.y > @intToFloat(f32, self.window.h)) {
-            box.vel.y = -std.math.fabs(box.vel.y);
-        }
-        box.pos = box.pos.add(box.vel.scale(dt));
-    }
-}
 
-fn circleBox(self: *Process, dt: f32) void {
-    if (self.input.wasKeyJustPressed('e')) {
-        self.addRandomBox(self.rand) catch {};
-    }
-    if (self.input.wasKeyJustPressed('w')) {
-        self.removeRandomBox(self.rand);
+        for (data.boxes.items) |*box| {
+            if (box.pos.x < 0) {
+                box.vel.x = std.math.fabs(box.vel.x);
+            }
+            if (box.pos.x + box.size.x > @intToFloat(f32, self.window.w)) {
+                box.vel.x = -std.math.fabs(box.vel.x);
+            }
+            if (box.pos.y < 0) {
+                box.vel.y = std.math.fabs(box.vel.y);
+            }
+            if (box.pos.y + box.size.y > @intToFloat(f32, self.window.h)) {
+                box.vel.y = -std.math.fabs(box.vel.y);
+            }
+            box.pos = box.pos.add(box.vel.scale(dt));
+        }
     }
 
-    const win_size = Vec2.init(@intToFloat(f32, self.window.w), @intToFloat(f32, self.window.h));
-    const win_center = win_size.scale(0.5);
-    for (self.boxes.items) |*box| {
-        const delta = box.pos.sub(win_center).unit();
-        const vel = Vec2.init(delta.y, -delta.x).scale(120);
-        box.pos = box.pos.add(vel.scale(dt));
+    fn circleBox(self: *Process, dt: f32) void {
+        const data = self.getData(Data);
+        if (self.input.wasKeyJustPressed('e')) {
+            data.addRandomBox(self.rand) catch {};
+        }
+        if (self.input.wasKeyJustPressed('w')) {
+            data.removeRandomBox(self.rand);
+        }
+
+        const win_size = Vec2.init(@intToFloat(f32, self.window.w), @intToFloat(f32, self.window.h));
+        const win_center = win_size.scale(0.5);
+        for (data.boxes.items) |*box| {
+            const delta = box.pos.sub(win_center).unit();
+            const vel = Vec2.init(delta.y, -delta.x).scale(120);
+            box.pos = box.pos.add(vel.scale(dt));
+        }
     }
-}
+
+    fn draw(self: *Process) void {
+        const data = self.getData(Data);
+        _ = c.SDL_SetRenderDrawColor(self.window.renderer, 0x10, 0x10, 0x10, 0xff);
+        _ = c.SDL_RenderClear(self.window.renderer);
+
+        for (data.boxes.items) |box| {
+            box.draw(self.window.renderer);
+        }
+
+        c.SDL_RenderPresent(self.window.renderer);
+    }
+
+    const bouncy = process.Program {
+        .init = init,
+        .deinit = deinit,
+        .update = bouncyBox,
+        .draw = draw,
+    };
+    const circle = process.Program {
+        .init = init,
+        .deinit = deinit,
+        .update = circleBox,
+        .draw = draw,
+    };
+};
 
 const Launcher = struct {
+    fn init(self: *Process) void {
+        _ = self;
+    }
+    fn deinit(self: *Process) void {
+        _ = self;
+    }
+
     fn update(self: *Process, dt: f32) void {
         _ = dt;
         const loader = self.imports.loader;
@@ -74,8 +151,18 @@ const Launcher = struct {
         }
     }
 
+    fn draw(self: *Process) void {
+        _ = c.SDL_SetRenderDrawColor(self.window.renderer, 0x10, 0x20, 0x10, 0xff);
+        _ = c.SDL_RenderClear(self.window.renderer);
+
+        c.SDL_RenderPresent(self.window.renderer);
+    }
+
     const app = process.Program {
+        .init = init,
+        .deinit = deinit,
         .update = Launcher.update,
+        .draw = draw,
     };
 };
 
@@ -83,7 +170,7 @@ const Launcher = struct {
 pub const SceneBox = struct {
     allocator: Allocator,
     programs: ArrayList(Process),
-    /// loaded, waiting for event loop
+    /// programs that are loaded and waiting for event loop
     queuedPrograms: ArrayList(Process),
     focused: ?*Process = null,
     rand: std.rand.Random,
@@ -93,8 +180,8 @@ pub const SceneBox = struct {
         std.log.info("Loading program {s}", .{name});
         const vtable: process.Program =
             if (std.mem.eql(u8, name, "Loader")) Launcher.app
-            else if (std.mem.eql(u8, name, "Smeef")) process.Program {.update = bouncyBox}
-            else if (std.mem.eql(u8, name, "Meef")) process.Program {.update = circleBox}
+            else if (std.mem.eql(u8, name, "Smeef")) BoxApp.bouncy
+            else if (std.mem.eql(u8, name, "Meef")) BoxApp.circle
             else {
                 std.log.err("No program with name {s}", .{name});
                 return;
@@ -129,7 +216,7 @@ pub const SceneBox = struct {
     }
 
     pub fn deinit(self: *SceneBox) void {
-        for (self.programs.items) |scene| scene.deinit();
+        for (self.programs.items) |*scene| scene.deinit();
         self.programs.deinit();
         self.queuedPrograms.deinit();
         self.allocator.destroy(self);
