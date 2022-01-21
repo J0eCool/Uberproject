@@ -28,10 +28,12 @@ pub fn build(b: *std.build.Builder) void {
     // for reference: https://www.khronos.org/opengl/wiki/OpenGL_Loading_Library
     // Alternatively we could go for a zig-based wrapper
     // see: https://github.com/prime31/zig-renderkit
-    const epoxy_path = "C:\\";
-    exe.addIncludeDir(epoxy_path ++ "include");
-    exe.addLibPath(epoxy_path ++ "lib");
+    const glew_path = "C:\\Programming\\Tools\\glew-2.1.0\\";
+    exe.addIncludeDir(glew_path ++ "include\\GL");
+    exe.addLibPath(glew_path ++ "lib\\Release\\x64");
+    b.installBinFile(glew_path ++ "bin\\Release\\x64\\glew32.dll", "glew32.dll");
     exe.linkSystemLibrary("opengl32");
+    exe.linkSystemLibrary("glew32");
 
     exe.linkLibC();
     exe.install();

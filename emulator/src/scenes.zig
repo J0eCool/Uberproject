@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("./sdl.zig").c;
+const gl = @import("./opengl.zig");
 
 const stack = @import("./stack_calc.zig");
 const util = @import("./util.zig");
@@ -20,6 +21,7 @@ const Process = process.Process;
 const BoxApp = struct {
     const Data = struct {
         boxes: BoxList,
+        program: gl.Program,
 
         fn addRandomBox(self: *Data, rand: std.rand.Random) !void {
             var box = gfx.Box {
@@ -50,8 +52,30 @@ const BoxApp = struct {
     fn init(self: *Process) void {
         const data = self.getData(Data);
         data.boxes = BoxList.init(self.allocator);
+
+        const vert = gl.loadShader(gl.VERTEX_SHADER,
+            \\attribute vec3 aPos;
+            \\
+            \\varying vec2 vPos;
+            \\
+            \\void main() {
+            \\    vPos = aPos;
+            \\    gl_Position = vec4(aPos, 1.0);
+            \\}
+        ) catch unreachable;
+        const frag = gl.loadShader(gl.FRAGMENT_SHADER,
+            \\precision mediump float;
+            \\
+            \\//uniform vec4 uColor;
+            \\
+            \\void main() {
+            \\    gl_FragColor = vec4(1, 1, 1, 1);
+            \\}
+        ) catch unreachable;
+        data.program = gl.Program.init(vert, frag) catch unreachable;
+
         for (util.times(5)) |_| {
-            data.addRandomBox(self.rand) catch {};
+            data.addRandomBox(self.rand) catch unreachable;
         }
     }
     fn deinit(self: *Process) void {
@@ -105,14 +129,16 @@ const BoxApp = struct {
 
     fn draw(self: *Process) void {
         const data = self.getData(Data);
-        _ = c.SDL_SetRenderDrawColor(self.window.renderer, 0x10, 0x10, 0x10, 0xff);
-        _ = c.SDL_RenderClear(self.window.renderer);
+        gl.viewport(0, 0, self.window.w, self.window.h);
+        gl.clearColor(0.1, 0.12, 0.15, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         for (data.boxes.items) |box| {
+            // TODO: draw boxes what with GL
             box.draw(self.window.renderer);
         }
 
-        c.SDL_RenderPresent(self.window.renderer);
+        c.SDL_GL_SwapWindow(self.window.ptr);
     }
 
     const bouncy = process.Program {
