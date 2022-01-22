@@ -23,6 +23,10 @@ const BoxApp = struct {
         boxes: BoxList,
         program: gl.Program,
 
+        box_vbo: gl.Buffer,
+        box_vao: gl.VertexArray,
+        pos_loc: gl.Uint,
+
         fn addRandomBox(self: *Data, rand: std.rand.Random) !void {
             var box = gfx.Box {
                 .pos = Vec2.init(
@@ -56,11 +60,15 @@ const BoxApp = struct {
         const vert = gl.loadShader(gl.VERTEX_SHADER,
             \\attribute vec3 aPos;
             \\
+            \\uniform vec3 uPos;
+            \\uniform vec2 uScale;
+            \\
             \\varying vec2 vPos;
             \\
             \\void main() {
-            \\    vPos = aPos;
-            \\    gl_Position = vec4(aPos, 1.0);
+            \\    vec3 pos = aPos*vec3(uScale, 1) + uPos;
+            \\    vPos = pos;
+            \\    gl_Position = vec4(pos, 1.0);
             \\}
         ) catch unreachable;
         const frag = gl.loadShader(gl.FRAGMENT_SHADER,
@@ -73,6 +81,25 @@ const BoxApp = struct {
             \\}
         ) catch unreachable;
         data.program = gl.Program.init(vert, frag) catch unreachable;
+
+        data.box_vbo = gl.genBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, data.box_vbo);
+        const box_verts = [_]f32{
+            0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            1.0, 1.0, 0.0,
+        };
+        gl.bufferData(f32, gl.ARRAY_BUFFER, box_verts[0..], gl.STATIC_DRAW);
+        data.box_vao = gl.genVertexArray();
+        gl.bindVertexArray(data.box_vao);
+        gl.bindBuffer(gl.ARRAY_BUFFER, data.box_vbo); // technically it's already bound
+        data.pos_loc = data.program.getAttribLocation("aPos");
+        gl.enableVertexAttribArray(data.pos_loc);
+        gl.c.__glewVertexAttribPointer.?(data.pos_loc,
+            3, gl.c.GL_FLOAT, gl.c.GL_FALSE, 3 * @sizeOf(f32), null);
 
         for (util.times(5)) |_| {
             data.addRandomBox(self.rand) catch unreachable;
@@ -127,15 +154,28 @@ const BoxApp = struct {
         }
     }
 
+    fn drawBox(self: *Process, box: gfx.Box) void {
+        const data = self.getData(Data);
+        const x = 2.0 * (box.pos.x / @intToFloat(f32, self.window.w) - 0.5);
+        const y = 2.0 * (box.pos.y / @intToFloat(f32, self.window.h) - 0.5);
+        const w = 2.0 * box.size.x / @intToFloat(f32, self.window.w);
+        const h = 2.0 * box.size.y / @intToFloat(f32, self.window.h);
+        data.program.uniform3f("uPos", x, y, 0.0);
+        data.program.uniform2f("uScale", w, h);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        _ = box;
+    }
+
     fn draw(self: *Process) void {
         const data = self.getData(Data);
         gl.viewport(0, 0, self.window.w, self.window.h);
         gl.clearColor(0.1, 0.12, 0.15, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+        data.program.use();
+        gl.bindVertexArray(data.box_vao);
         for (data.boxes.items) |box| {
-            // TODO: draw boxes what with GL
-            box.draw(self.window.renderer);
+            drawBox(self, box);
         }
 
         c.SDL_GL_SwapWindow(self.window.ptr);

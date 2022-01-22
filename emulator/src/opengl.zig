@@ -6,8 +6,8 @@ pub const c = @cImport({
     @cInclude("glew.h");
 });
 
-pub const int = c.GLint;
-pub const uint = c.GLuint;
+pub const Int = c.GLint;
+pub const Uint = c.GLuint;
 
 pub const VERTEX_SHADER = c.GL_VERTEX_SHADER;
 pub const FRAGMENT_SHADER = c.GL_FRAGMENT_SHADER;
@@ -21,7 +21,7 @@ pub const ONE_MINUS_SRC_ALPHA = c.GL_ONE_MINUS_SRC_ALPHA;
 pub const COLOR_BUFFER_BIT = c.GL_COLOR_BUFFER_BIT;
 pub const DEPTH_BUFFER_BIT = c.GL_DEPTH_BUFFER_BIT;
 
-pub const Shader = uint;
+pub const Shader = Uint;
 
 pub fn glewInit() !void {
     const err = c.glewInit();
@@ -87,6 +87,29 @@ pub const Program = struct {
 
         return result;
     }
+
+    pub fn use(self: Program) void {
+        c.__glewUseProgram.?(self.id);
+    }
+
+    pub fn getAttribLocation(self: Program, attrib: []const u8) Uint {
+        const ret = c.__glewGetAttribLocation.?(self.id, @ptrCast([*c]const u8, attrib));
+        // TODO: check error code
+        return @intCast(Uint, ret);
+    }
+
+    pub fn getUniformLocation(self: Program, name: []const u8) Int {
+        return c.__glewGetUniformLocation.?(self.id, @ptrCast([*c]const u8, name));
+    }
+    pub fn uniform1f(self: Program, name: []const u8, x: f32) void {
+        c.__glewUniform1f.?(self.getUniformLocation(name), x);
+    }
+    pub fn uniform2f(self: Program, name: []const u8, x: f32, y: f32) void {
+        c.__glewUniform2f.?(self.getUniformLocation(name), x, y);
+    }
+    pub fn uniform3f(self: Program, name: []const u8, x: f32, y: f32, z: f32) void {
+        c.__glewUniform3f.?(self.getUniformLocation(name), x, y, z);
+    }
 };
 
 //------------------------------------------------------------------------------
@@ -95,49 +118,73 @@ pub const Program = struct {
 pub fn viewport(x: i32, y: i32, w: i32, h: i32) void {
     c.glViewport(x, y, w, h);
 }
-pub fn enable(thing: uint) void {
+pub fn enable(thing: Uint) void {
     c.glEnable(thing);
 }
-pub fn depthFunc(thing: uint) void {
+pub fn depthFunc(thing: Uint) void {
     c.glDepthFunc(thing);
 }
-pub fn blendFunc(src: uint, dest: uint) void {
+pub fn blendFunc(src: Uint, dest: Uint) void {
     c.glBlendFunc(src, dest);
 }
 pub fn clearColor(r: f32, g: f32, b: f32, a: f32) void {
     c.glClearColor(r, g, b, a);
 }
-pub fn clear(flags: uint) void {
+pub fn clear(flags: Uint) void {
     c.glClear(flags);
 }
 
 //------------------------------------------------------------------------------
 // Buffers
 
-pub const Buffer = uint;
+/// VBO
+pub const Buffer = Uint;
+/// VAO
+pub const VertexArray = Uint;
+
 pub const ARRAY_BUFFER = c.GL_ARRAY_BUFFER;
 
-pub fn genBuffers(n: i32) Buffer {
-    var id: uint = undefined;
-    c.glGenBuffers(n, &id);
-    return id;
+pub const STATIC_DRAW = c.GL_STATIC_DRAW;
+
+pub const TRIANGLES = c.GL_TRIANGLES;
+
+/// Generate a single buffer
+pub fn genBuffer() Buffer {
+    var vbo: Uint = undefined;
+    c.__glewGenBuffers.?(1, &vbo);
+    return vbo;
 }
-pub fn bindBuffer(kind: uint, id: Buffer) void {
-    c.glBindBuffer(kind, id);
+pub fn bindBuffer(kind: Uint, vbo: Buffer) void {
+    c.__glewBindBuffer.?(kind, vbo);
 }
-pub fn bufferData(comptime T: type, kind: uint, data: []T, draw_kind: uint) void {
-    c.glBufferData(kind, data.len * @sizeOf(T), &data[0], draw_kind);
+pub fn bufferData(comptime T: type, kind: Uint, data: []const T, draw_kind: Uint) void {
+    c.__glewBufferData.?(kind, @intCast(c_longlong, data.len * @sizeOf(T)), &data[0], draw_kind);
+}
+
+pub fn genVertexArray() VertexArray {
+    var vao: Uint = undefined;
+    c.__glewGenVertexArrays.?(1, &vao);
+    return vao;
+}
+pub fn bindVertexArray(vao: VertexArray) void {
+    c.__glewBindVertexArray.?(vao);
+}
+pub fn enableVertexAttribArray(loc: Uint) void {
+    c.__glewEnableVertexAttribArray.?(loc);
+}
+pub fn drawArrays(kind: Uint, start: Int, num: Int) void {
+    c.glDrawArrays(kind, start, num);
 }
 
 //------------------------------------------------------------------------------
 // Shader Loading
 
-pub fn createShader(kind: uint) Shader {
+pub fn createShader(kind: Uint) Shader {
     return c.__glewCreateShader.?(kind);
 }
-pub fn getShaderiv(shader: Shader, info: uint, result: *int) void {
+pub fn getShaderiv(shader: Shader, info: Uint, result: *Int) void {
     c.__glewGetShaderiv.?(shader, info, result);
 }
-pub fn getProgramiv(program: uint, info: uint, result: *int) void {
+pub fn getProgramiv(program: Uint, info: Uint, result: *Int) void {
     c.__glewGetProgramiv.?(program, info, result);
 }
