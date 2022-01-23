@@ -2,12 +2,12 @@ const std = @import("std");
 const c = @import("./sdl.zig").c;
 const gl = @import("./opengl.zig");
 
-const stack = @import("./stack_calc.zig");
-const util = @import("./util.zig");
-
 const gfx = @import("./graphics.zig");
 const gui = @import("./gui.zig");
+const util = @import("./util.zig");
+
 const Input = @import("./input.zig").Input;
+const Launcher = @import("./launcher_app.zig").Launcher;
 const Vec2 = @import("./vec.zig").Vec2;
 
 const Allocator = std.mem.Allocator;
@@ -164,7 +164,6 @@ const BoxApp = struct {
         data.program.uniform3f("uPos", x, y, 0.0);
         data.program.uniform2f("uScale", w, h);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-        _ = box;
     }
 
     fn draw(self: *Process) void {
@@ -176,7 +175,8 @@ const BoxApp = struct {
         data.program.use();
         gl.bindVertexArray(data.box_vao);
         for (data.boxes.items) |box| {
-            drawBox(self, box);
+            const instr = gfx.Instr{.box = box};
+            instr.draw(data.program, self.window);
         }
 
         c.SDL_GL_SwapWindow(self.window.ptr);
@@ -192,53 +192,6 @@ const BoxApp = struct {
         .init = init,
         .deinit = deinit,
         .update = circleBox,
-        .draw = draw,
-    };
-};
-
-const Launcher = struct {
-    const Data = struct {
-        gui: gui.Gui,
-    };
-    fn init(self: *Process) void {
-        const data = self.getData(Data);
-        data.gui = gui.Gui.init(&self.input);
-    }
-    fn deinit(self: *Process) void {
-        _ = self;
-    }
-
-    fn update(self: *Process, dt: f32) void {
-        _ = dt;
-        const data = self.getData(Data);
-        const loader = self.imports.loader;
-        if (data.gui.button()) {
-            std.log.info("I see you :)", .{});
-        }
-        if (data.gui.button()) {
-            loader.loadProgram(loader.self, "Smeef");
-        }
-        if (data.gui.button()) {
-            loader.loadProgram(loader.self, "Meef");
-        }
-    }
-
-    fn draw(self: *Process) void {
-        const data = self.getData(Data);
-        
-        gl.viewport(0, 0, self.window.w, self.window.h);
-        gl.clearColor(0.05, 0.1, 0.05, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        data.gui.draw();
-
-        c.SDL_GL_SwapWindow(self.window.ptr);
-    }
-
-    const app = process.Program {
-        .init = init,
-        .deinit = deinit,
-        .update = Launcher.update,
         .draw = draw,
     };
 };

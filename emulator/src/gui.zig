@@ -1,11 +1,16 @@
+const std = @import("std");
+
+const gfx = @import("./graphics.zig");
 const gl = @import("./opengl.zig");
 const input = @import("./input.zig");
+const window = @import("./window.zig");
 
 const vec = @import("./vec.zig");
 const Vec2 = vec.Vec2;
 
 pub const Gui = struct {
     input: *input.Input,
+    window: *window.Window,
 
     program: gl.Program = undefined,
 
@@ -13,15 +18,18 @@ pub const Gui = struct {
     rect_vao: gl.VertexArray = undefined,
     pos_loc: gl.Uint = undefined,
 
+    to_draw: std.ArrayList(gfx.Instr),
     cursor: Vec2,
-    default_cursor: Vec2,
+    cursor_start: Vec2,
 
-    pub fn init(in: *input.Input) Gui {
+    pub fn init(allocator: std.mem.Allocator, in: *input.Input, win: *window.Window) Gui {
         const default_cursor = Vec2.init(30, 30);
         var self = Gui {
             .input = in,
+            .window = win,
             .cursor = default_cursor,
-            .default_cursor = default_cursor,
+            .cursor_start = default_cursor,
+            .to_draw = std.ArrayList(gfx.Instr).init(allocator),
         };
         const vert = gl.loadShader(gl.VERTEX_SHADER, Gui.vert_shader) catch unreachable;
         const frag = gl.loadShader(gl.FRAGMENT_SHADER, frag_shader) catch unreachable;
@@ -48,12 +56,37 @@ pub const Gui = struct {
 
         return self;
     }
-    pub fn button(self: Gui) bool {
-        _ = self;
-        return false;
+
+    pub fn deinit(self: Gui) void {
+        self.to_draw.deinit();
     }
-    pub fn draw(self: Gui) void {
-        _ = self;
+
+    /// Flushes queued drawing instructions
+    pub fn draw(self: *Gui) void {
+        self.program.use();
+        gl.bindVertexArray(self.rect_vao);
+
+        for (self.to_draw.items) |instr| {
+            instr.draw(self.program, self.window.*);
+        }
+
+        // Reset state for the next frame
+        self.to_draw.shrinkRetainingCapacity(0);
+        self.cursor = self.cursor_start;
+    }
+
+    pub fn button(self: *Gui) bool {
+        const size = Vec2.init(100, 40);
+        self.to_draw.append(gfx.Instr{ .box = .{
+            .pos = self.cursor,
+            .size = size,
+        }}) catch unreachable;
+        const margin = 5;
+        // TODO: set origin to top-left
+        self.cursor.y += size.y + margin;
+
+        // TODO: handle click input
+        return false;
     }
 
     const vert_shader =
