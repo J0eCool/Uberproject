@@ -115,6 +115,9 @@ pub const Program = struct {
 //------------------------------------------------------------------------------
 // uncategorized
 
+/// Sets up the GL viewport.
+/// The viewport can be used to split the rendering window into multiple sub-views
+/// ... maybe? https://gamedev.stackexchange.com/questions/147522/what-is-glviewport-for-and-why-it-is-not-necessary-sometimes
 pub fn viewport(x: i32, y: i32, w: i32, h: i32) void {
     c.glViewport(x, y, w, h);
 }

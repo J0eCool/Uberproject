@@ -6,6 +6,7 @@ const stack = @import("./stack_calc.zig");
 const util = @import("./util.zig");
 
 const gfx = @import("./graphics.zig");
+const gui = @import("./gui.zig");
 const Input = @import("./input.zig").Input;
 const Vec2 = @import("./vec.zig").Vec2;
 
@@ -196,8 +197,12 @@ const BoxApp = struct {
 };
 
 const Launcher = struct {
+    const Data = struct {
+        gui: gui.Gui,
+    };
     fn init(self: *Process) void {
-        _ = self;
+        const data = self.getData(Data);
+        data.gui = gui.Gui.init(&self.input);
     }
     fn deinit(self: *Process) void {
         _ = self;
@@ -205,23 +210,29 @@ const Launcher = struct {
 
     fn update(self: *Process, dt: f32) void {
         _ = dt;
+        const data = self.getData(Data);
         const loader = self.imports.loader;
-        if (self.input.wasKeyJustPressed('h')) {
+        if (data.gui.button()) {
             std.log.info("I see you :)", .{});
         }
-        if (self.input.wasKeyJustPressed('n')) {
+        if (data.gui.button()) {
             loader.loadProgram(loader.self, "Smeef");
         }
-        if (self.input.wasKeyJustPressed('m')) {
+        if (data.gui.button()) {
             loader.loadProgram(loader.self, "Meef");
         }
     }
 
     fn draw(self: *Process) void {
-        _ = c.SDL_SetRenderDrawColor(self.window.renderer, 0x10, 0x20, 0x10, 0xff);
-        _ = c.SDL_RenderClear(self.window.renderer);
+        const data = self.getData(Data);
+        
+        gl.viewport(0, 0, self.window.w, self.window.h);
+        gl.clearColor(0.05, 0.1, 0.05, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        c.SDL_RenderPresent(self.window.renderer);
+        data.gui.draw();
+
+        c.SDL_GL_SwapWindow(self.window.ptr);
     }
 
     const app = process.Program {
