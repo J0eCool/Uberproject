@@ -41,10 +41,13 @@ pub const Launcher = struct {
             std.log.info("I see you :)", .{});
         }
         if (data.gui.button() or self.input.wasKeyJustPressed('n')) {
-            loader.loadProgram(loader.self, "Smeef");
+            loader.loadProgram(loader.self, "Shader");
+        }
+        if (data.gui.button() or self.input.wasKeyJustPressed('m')) {
+            loader.loadProgram(loader.self, "Boxes");
         }
         if (data.gui.button()) {
-            loader.loadProgram(loader.self, "Meef");
+            loader.loadProgram(loader.self, "Spiral");
         }
     }
 

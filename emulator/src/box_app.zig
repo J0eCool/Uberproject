@@ -155,17 +155,6 @@ pub const BoxApp = struct {
         }
     }
 
-    fn drawBox(self: *Process, box: gfx.Box) void {
-        const data = self.getData(Data);
-        const x = 2.0 * (box.pos.x / @intToFloat(f32, self.window.w) - 0.5);
-        const y = 2.0 * (box.pos.y / @intToFloat(f32, self.window.h) - 0.5);
-        const w = 2.0 * box.size.x / @intToFloat(f32, self.window.w);
-        const h = 2.0 * box.size.y / @intToFloat(f32, self.window.h);
-        data.program.uniform3f("uPos", x, y, 0.0);
-        data.program.uniform2f("uScale", w, h);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-    }
-
     fn draw(self: *Process) void {
         const data = self.getData(Data);
         gl.viewport(0, 0, self.window.w, self.window.h);

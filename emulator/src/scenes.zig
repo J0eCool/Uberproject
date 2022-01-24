@@ -7,17 +7,18 @@ const gui = @import("./gui.zig");
 const util = @import("./util.zig");
 
 const Input = @import("./input.zig").Input;
-const Launcher = @import("./launcher_app.zig").Launcher;
 const Vec2 = @import("./vec.zig").Vec2;
+
+const process = @import("./process.zig");
+const Process = process.Process;
+
+const Launcher = @import("./launcher_app.zig").Launcher;
+const BoxApp = @import("./box_app.zig").BoxApp;
+const ShaderApp = @import("./shader_app.zig").ShaderApp;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const log = std.log.info;
-
-const BoxApp = @import("./box_app.zig").BoxApp;
-
-const process = @import("./process.zig");
-const Process = process.Process;
 
 /// Holds a bunch of programs, manages their shared state
 pub const SceneBox = struct {
@@ -33,8 +34,9 @@ pub const SceneBox = struct {
         std.log.info("Loading program {s}", .{name});
         const vtable: process.Program =
             if (std.mem.eql(u8, name, "Loader")) Launcher.app
-            else if (std.mem.eql(u8, name, "Smeef")) BoxApp.bouncy
-            else if (std.mem.eql(u8, name, "Meef")) BoxApp.circle
+            else if (std.mem.eql(u8, name, "Shader")) ShaderApp.app
+            else if (std.mem.eql(u8, name, "Boxes")) BoxApp.bouncy
+            else if (std.mem.eql(u8, name, "Spiral")) BoxApp.circle
             else {
                 std.log.err("No program with name {s}", .{name});
                 return;
