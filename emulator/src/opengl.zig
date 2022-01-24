@@ -34,62 +34,74 @@ pub fn glewInit() !void {
 /// kind == GL_VERTEX_SHADER or GL_FRAGMENT_SHADER
 pub fn loadShader(kind: c.GLenum, source: []const u8) !Shader {
     const result = createShader(kind);
-    c.__glewShaderSource.?(result, 1, @ptrCast([*c]const[*c]const u8, &source), null);
-    c.__glewCompileShader.?(result);
+    try compileShader(result, source);
+    return result;
+}
+
+pub fn compileShader(shader: Shader, source: []const u8) !void {
+    c.__glewShaderSource.?(shader, 1, @ptrCast([*c]const[*c]const u8, &source), null);
+    c.__glewCompileShader.?(shader);
 
     // Print error message when things go wrong
     var success: c.GLint = 1;
-    getShaderiv(result, c.GL_COMPILE_STATUS, &success);
+    getShaderiv(shader, c.GL_COMPILE_STATUS, &success);
     if (success == 0) {
         var length: c.GLint = 0;
-        getShaderiv(result, c.GL_INFO_LOG_LENGTH, &length);
+        getShaderiv(shader, c.GL_INFO_LOG_LENGTH, &length);
         var buffer = [_]u8{ 0 } ** 1024;
         if (length > buffer.len) {
             return error.ErrorMessageTooLong;
         }
-        c.__glewGetShaderInfoLog.?(result, length, null, @ptrCast([*c]u8, &buffer[0]));
+        c.__glewGetShaderInfoLog.?(shader, length, null, @ptrCast([*c]u8, &buffer[0]));
         std.log.err("Error loading shader: {s}", .{buffer});
         return error.ShaderFailedToLoad;
     }
-
-    return result;
 }
 
 /// Wrapper for shader programs
 pub const Program = struct {
     id: c.GLuint,
-    vert_uniforms: [16]c.GLint = [_]c.GLint{-1} ** 16,
-    frag_uniforms: [16]c.GLint = [_]c.GLint{-1} ** 16,
+    vert: Shader,
+    frag: Shader,
+    vert_uniforms: [16]Int = [_]Int{-1} ** 16,
+    frag_uniforms: [16]Int = [_]Int{-1} ** 16,
 
     /// Loads a program from two loaded shaders
     pub fn init(vert: Shader, frag: Shader) !Program {
-        const result = Program { .id = c.__glewCreateProgram.?() };
-        c.__glewAttachShader.?(result.id, vert);
-        c.__glewAttachShader.?(result.id, frag);
-        c.__glewLinkProgram.?(result.id);
-        c.__glewDetachShader.?(result.id, vert);
-        c.__glewDetachShader.?(result.id, frag);
-
-        // Print error message when things go wrong
-        var success: c.GLint = 1;
-        getProgramiv(result.id, c.GL_LINK_STATUS, &success);
-        if (success == 0) {
-            var length: c.GLint = 0;
-            getProgramiv(result.id, c.GL_INFO_LOG_LENGTH, &length);
-            var buffer = [_]u8{ 0 } ** 1024;
-            if (length > buffer.len) {
-                return error.ErrorMessageTooLong;
-            }
-            c.__glewGetProgramInfoLog.?(result.id, length, null, @ptrCast([*c]u8, &buffer[0]));
-            std.log.err("Error loading program: {s}", .{buffer});
-            return error.ProgramFailedToLoad;
-        }
-
+        const result = Program {
+            .id = c.__glewCreateProgram.?(),
+            .vert = vert,
+            .frag = frag,
+        };
+        try result.link();
         return result;
     }
 
     pub fn use(self: Program) void {
         c.__glewUseProgram.?(self.id);
+    }
+
+    pub fn link(self: Program) !void {
+        c.__glewAttachShader.?(self.id, self.vert);
+        c.__glewAttachShader.?(self.id, self.frag);
+        c.__glewLinkProgram.?(self.id);
+        c.__glewDetachShader.?(self.id, self.vert);
+        c.__glewDetachShader.?(self.id, self.frag);
+
+        // Print error message when things go wrong
+        var success: Int = 1;
+        getProgramiv(self.id, c.GL_LINK_STATUS, &success);
+        if (success == 0) {
+            var length: Int = 0;
+            getProgramiv(self.id, c.GL_INFO_LOG_LENGTH, &length);
+            var buffer = [_]u8{ 0 } ** 1024;
+            if (length > buffer.len) {
+                return error.ErrorMessageTooLong;
+            }
+            c.__glewGetProgramInfoLog.?(self.id, length, null, @ptrCast([*c]u8, &buffer[0]));
+            std.log.err("Error loading program: {s}", .{buffer});
+            return error.ProgramFailedToLoad;
+        }
     }
 
     pub fn getAttribLocation(self: Program, attrib: []const u8) Uint {
@@ -101,12 +113,16 @@ pub const Program = struct {
     pub fn getUniformLocation(self: Program, name: []const u8) Int {
         return c.__glewGetUniformLocation.?(self.id, @ptrCast([*c]const u8, name));
     }
+
+    /// Sets a shader uniform with a particular name
     pub fn uniform1f(self: Program, name: []const u8, x: f32) void {
         c.__glewUniform1f.?(self.getUniformLocation(name), x);
     }
+    /// Sets a shader uniform, similar to `uniform1f`
     pub fn uniform2f(self: Program, name: []const u8, x: f32, y: f32) void {
         c.__glewUniform2f.?(self.getUniformLocation(name), x, y);
     }
+    /// Sets a shader uniform, similar to `uniform1f`
     pub fn uniform3f(self: Program, name: []const u8, x: f32, y: f32, z: f32) void {
         c.__glewUniform3f.?(self.getUniformLocation(name), x, y, z);
     }
@@ -182,9 +198,19 @@ pub fn drawArrays(kind: Uint, start: Int, num: Int) void {
 //------------------------------------------------------------------------------
 // Shader Loading
 
+/// Creates an empty shader object
+/// Is undone by `deleteShader`
 pub fn createShader(kind: Uint) Shader {
     return c.__glewCreateShader.?(kind);
 }
+
+/// Free the memory and invalidate the name associated with a specific shader
+/// Undoes `createShader`
+/// Will not delete a shader until it is no longer attached to a GL Program
+pub fn deleteShader(shader: Shader) void {
+    c.__glewDeleteShader.?(shader);
+}
+
 pub fn getShaderiv(shader: Shader, info: Uint, result: *Int) void {
     c.__glewGetShaderiv.?(shader, info, result);
 }

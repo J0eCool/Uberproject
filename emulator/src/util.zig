@@ -82,3 +82,11 @@ test "util.times" {
     try expectEqual(10, x);
     try expectEqual(45, y);
 }
+
+pub fn readWholeFile(allocator: std.mem.Allocator, rel_path: []const u8) ![:0]u8 {
+    // var path_buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    var path_buffer = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+    const path = try std.fs.realpath(rel_path, &path_buffer);
+    const file = try std.fs.openFileAbsolute(path, .{});
+    return try file.readToEndAllocOptions(allocator, 1024*1024, null, @alignOf(u8), 0);
+}

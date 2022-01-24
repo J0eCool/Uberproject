@@ -24,9 +24,26 @@ pub const ShaderApp = struct {
         box_vbo: gl.Buffer,
         box_vao: gl.VertexArray,
         pos_loc: gl.Uint,
+
+        fn reloadFrag(self: Data, proc: Process) void {
+            const contents = util.readWholeFile(proc.allocator, frag_file) catch |err| {
+                std.log.err("Unable to open shader file {s}\n  error: {}", .{frag_file, err});
+                return;
+            };
+            gl.compileShader(self.program.frag, contents) catch |err| {
+                std.log.err("Unable to compile shader: {}", .{err});
+                return;
+            };
+            proc.allocator.free(contents);
+            self.program.link() catch |err| {
+                std.log.err("Unable to link shader program: {}", .{err});
+                return;
+            };
+        }
     };
 
-    const frag_file = "../assets/shaders/2-fractal.frag";
+    // note: path is relative to zig-out/bin/emulator.exe
+    const frag_file = "assets/shaders/2-fractal.frag";
 
     fn init(self: *Process) void {
         const data = self.getData(Data);
@@ -41,7 +58,9 @@ pub const ShaderApp = struct {
             \\    gl_Position = vec4(aPos, 1.0);
             \\}
         ) catch unreachable;
-        const frag = gl.loadShader(gl.FRAGMENT_SHADER, @embedFile(frag_file)) catch unreachable;
+        const frag_contents = util.readWholeFile(self.allocator, frag_file) catch unreachable;
+        const frag = gl.loadShader(gl.FRAGMENT_SHADER, frag_contents) catch unreachable;
+        self.allocator.free(frag_contents);
         data.program = gl.Program.init(vert, frag) catch unreachable;
 
         data.box_vbo = gl.genBuffer();
@@ -69,8 +88,11 @@ pub const ShaderApp = struct {
     }
 
     fn update(self: *Process, dt: f32) void {
-        _ = self;
         _ = dt;
+        const data = self.getData(Data);
+        if (self.input.wasKeyJustPressed('r')) {
+            data.reloadFrag(self.*);
+        }
     }
 
     fn draw(self: *Process) void {

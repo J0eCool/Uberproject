@@ -1,7 +1,10 @@
+#version 330
 precision mediump float;
 
-varying vec2 vPos;
+in vec2 vPos;
+
+layout (location = 0) out vec4 FragColor;
 
 void main() {
-    gl_FragColor = vec4(vPos.x, 0.5, vPos.y, 1);
+    FragColor = vec4(vPos.x, 0.5, vPos.y, 1);
 }
