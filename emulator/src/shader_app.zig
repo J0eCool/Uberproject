@@ -20,6 +20,7 @@ const Process = process.Process;
 pub const ShaderApp = struct {
     const Data = struct {
         program: gl.Program,
+        time: f32 = 0.0,
 
         box_vbo: gl.Buffer,
         box_vao: gl.VertexArray,
@@ -88,8 +89,9 @@ pub const ShaderApp = struct {
     }
 
     fn update(self: *Process, dt: f32) void {
-        _ = dt;
         const data = self.getData(Data);
+        data.time += dt;
+
         if (self.input.wasKeyJustPressed('r')) {
             data.reloadFrag(self.*);
         }
@@ -102,6 +104,7 @@ pub const ShaderApp = struct {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         data.program.use();
+        data.program.uniform1f("uTime", data.time);
         gl.bindVertexArray(data.box_vao);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
