@@ -31,11 +31,11 @@ pub const ShaderApp = struct {
                 std.log.err("Unable to open shader file {s}\n  error: {}", .{frag_file, err});
                 return;
             };
+            defer proc.allocator.free(contents);
             gl.compileShader(self.program.frag, contents) catch |err| {
                 std.log.err("Unable to compile shader: {}", .{err});
                 return;
             };
-            proc.allocator.free(contents);
             self.program.link() catch |err| {
                 std.log.err("Unable to link shader program: {}", .{err});
                 return;
@@ -60,8 +60,8 @@ pub const ShaderApp = struct {
             \\}
         ) catch unreachable;
         const frag_contents = util.readWholeFile(self.allocator, frag_file) catch unreachable;
+        defer self.allocator.free(frag_contents);
         const frag = gl.loadShader(gl.FRAGMENT_SHADER, frag_contents) catch unreachable;
-        self.allocator.free(frag_contents);
         data.program = gl.Program.init(vert, frag) catch unreachable;
 
         data.box_vbo = gl.genBuffer();
