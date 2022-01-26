@@ -1,24 +1,15 @@
 const gl = @import("./opengl.zig");
 
+const color = @import("./color.zig");
 const Vec2 = @import("./vec.zig").Vec2;
 const Window = @import("./window.zig").Window;
-
-pub const Color = struct {
-    r: f32,
-    g: f32,
-    b: f32,
-
-    pub fn init(r: f32, g: f32, b: f32) Color {
-        return Color { .r = r, .g = g, .b = b };
-    }
-};
 
 pub const Box = struct {
     pos: Vec2,
     vel: Vec2 = Vec2.init(0, 0),
     size: Vec2,
 
-    color: Color = Color.init(0.9, 0.1, 0.1),
+    color: color.RGB = color.RGB.init(0.9, 0.1, 0.1),
 };
 
 /// Render Instruction - used to build a list of rendering instructions, to support

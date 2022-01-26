@@ -3,8 +3,6 @@ const sdl = @import("./sdl.zig");
 const c = sdl.c;
 
 const scenes_mod = @import("scenes.zig");
-const stack = @import("stack_calc.zig");
-const util = @import("util.zig");
 const Window = @import("window.zig").Window;
 
 const Allocator = std.mem.Allocator;
@@ -32,6 +30,5 @@ pub fn main() !void {
 }
 
 test {
-    _ = stack;
-    _ = util;
+    _ = @import("tests.zig");
 }
