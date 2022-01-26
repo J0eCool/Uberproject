@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const util = @import("./util.zig");
 const Vec3 = @import("./vec.zig").Vec3;
 
@@ -15,6 +17,7 @@ pub const RGB = packed struct {
 
     /// Converts a color from RGB to HSV
     pub fn toHSV(c: RGB) HSV {
+        // algorithm from https://www.rapidtables.com/convert/color/rgb-to-hsv.html
         const cmax = @maximum(c.r, @maximum(c.g, c.b));
         const cmin = @minimum(c.r, @minimum(c.g, c.b));
         const dc = cmax - cmin;
@@ -44,8 +47,26 @@ pub const HSV = struct {
     pub fn init(h: f32, s: f32, v: f32) HSV {
         return HSV { .h = h, .s = s, .v = v };
     }
-};
 
+    // converts to a color in the RGB color space
+    pub fn toRGB(hsv: HSV) RGB {
+        // algorithm from https://www.rapidtables.com/convert/color/hsv-to-rgb.html
+        const c = hsv.v*hsv.s;
+        const x = c*(1 - std.math.fabs(@mod(hsv.h/60, 2) - 1));
+        const m = hsv.v - c;
+        var rgb =
+            if (hsv.h < 60)       RGB.init(c, x, 0)
+            else if (hsv.h < 120) RGB.init(x, c, 0)
+            else if (hsv.h < 180) RGB.init(0, c, x)
+            else if (hsv.h < 240) RGB.init(0, x, c)
+            else if (hsv.h < 300) RGB.init(x, 0, c)
+            else                  RGB.init(c, 0, x);
+        rgb.r += m;
+        rgb.g += m;
+        rgb.b += m;
+        return rgb;
+    }
+};
 
 test "RGB.toHSV()" {
     // Fully-saturated monochromatic
@@ -68,4 +89,44 @@ test "RGB.toHSV()" {
     try util.expectEqual(RGB.init(0.25, 0.5, 1.0).toHSV(), HSV.init(220, 0.75, 1.0));
     try util.expectEqual(RGB.init(0.75, 0, 1.0).toHSV(), HSV.init(285, 1, 1.0));
     try util.expectEqual(RGB.init(0.75, 0.5, 1.0).toHSV(), HSV.init(270, 0.5, 1.0));
+}
+
+/// Helper function for conversion tests
+fn testHsvToRgb(hsv: HSV, rgb: RGB) !void {
+    const conv = hsv.toRGB();
+    const eq = std.math.approxEqAbs;
+    const eps = 0.0001;
+    const is_equal =
+        eq(f32, conv.r, rgb.r, eps) and
+        eq(f32, conv.g, rgb.g, eps) and
+        eq(f32, conv.b, rgb.b, eps);
+    if (!is_equal) {
+        std.log.err("ERROR", .{});
+        std.log.err("Given   : H={d:.2}, S={d:.2}, V={d:.2}", .{hsv.h, hsv.s, hsv.v});
+        std.log.err("Actual  : R={d:.2}, G={d:.2}, B={d:.2}", .{conv.r, conv.g, conv.b});
+        std.log.err("Expected: R={d:.2}, G={d:.2}, B={d:.2}", .{rgb.r, rgb.g, rgb.b});
+        return error.TestExpectedEqual;
+    }
+}
+test "HSV.toRGB()" {
+    // Fully-saturated monochromatic
+    try testHsvToRgb(HSV.init(  0, 1, 1.0), RGB.init(1.0, 0, 0));
+    try testHsvToRgb(HSV.init(120, 1, 1.0), RGB.init(0, 1.0, 0));
+    try testHsvToRgb(HSV.init(240, 1, 1.0), RGB.init(0, 0, 1.0));
+    try testHsvToRgb(HSV.init(  0, 1, 0.5), RGB.init(0.5, 0, 0));
+    try testHsvToRgb(HSV.init(120, 1, 0.5), RGB.init(0, 0.5, 0));
+    try testHsvToRgb(HSV.init(240, 1, 0.5), RGB.init(0, 0, 0.5));
+
+    // Grays (0% saturation)
+    try testHsvToRgb(HSV.init(0, 0, 0.0), RGB.init(0.0, 0.0, 0.0));
+    try testHsvToRgb(HSV.init(0, 0, 0.2), RGB.init(0.2, 0.2, 0.2));
+    try testHsvToRgb(HSV.init(0, 0, 0.5), RGB.init(0.5, 0.5, 0.5));
+    try testHsvToRgb(HSV.init(0, 0, 0.8), RGB.init(0.8, 0.8, 0.8));
+    try testHsvToRgb(HSV.init(0, 0, 1.0), RGB.init(1.0, 1.0, 1.0));
+
+    // Blends
+    try testHsvToRgb(HSV.init(30, 1, 1.0), RGB.init(1.0, 0.5, 0));
+    try testHsvToRgb(HSV.init(220, 0.75, 1.0), RGB.init(0.25, 0.5, 1.0));
+    try testHsvToRgb(HSV.init(285, 1, 1.0), RGB.init(0.75, 0, 1.0));
+    try testHsvToRgb(HSV.init(270, 0.5, 1.0), RGB.init(0.75, 0.5, 1.0));
 }
