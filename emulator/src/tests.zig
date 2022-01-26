@@ -2,6 +2,7 @@
 
 test {
     _ = @import("color.zig");
+    _ = @import("scratch.zig");
     _ = @import("stack_calc.zig");
     _ = @import("util.zig");
 }
