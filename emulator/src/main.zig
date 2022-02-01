@@ -2,7 +2,7 @@ const std = @import("std");
 const sdl = @import("./sdl.zig");
 const c = sdl.c;
 
-const scenes_mod = @import("scenes.zig");
+const Kernel = @import("kernel.zig").Kernel;
 const Window = @import("window.zig").Window;
 
 const Allocator = std.mem.Allocator;
@@ -24,9 +24,9 @@ pub fn main() !void {
     sdl.init(sdl.Init.Video);
     defer sdl.quit();
 
-    var scenes = try scenes_mod.SceneBox.init(allocator, rand);
-    defer scenes.deinit();
-    try scenes.run();
+    var kernel = try Kernel.init(allocator, rand);
+    defer kernel.deinit();
+    try kernel.run();
 }
 
 test {

@@ -13,15 +13,13 @@ const process = @import("./process.zig");
 const Process = process.Process;
 
 const Launcher = @import("./launcher_app.zig").Launcher;
-const BoxApp = @import("./box_app.zig").BoxApp;
-const ShaderApp = @import("./shader_app.zig").ShaderApp;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const log = std.log.info;
 
 /// Holds a bunch of programs, manages their shared state
-pub const SceneBox = struct {
+pub const Kernel = struct {
     allocator: Allocator,
     programs: ArrayList(Process),
     /// programs that are loaded and waiting for event loop
@@ -30,47 +28,41 @@ pub const SceneBox = struct {
     rand: std.rand.Random,
     shouldQuit: bool = false,
 
-    fn loadProgram(self: *SceneBox, name: []const u8) void {
-        std.log.info("Loading program {s}", .{name});
-        const vtable: process.Program =
-            if (std.mem.eql(u8, name, "Loader")) Launcher.app
-            else if (std.mem.eql(u8, name, "Shader")) ShaderApp.app
-            else if (std.mem.eql(u8, name, "Boxes")) BoxApp.bouncy
-            else if (std.mem.eql(u8, name, "Spiral")) BoxApp.circle
-            else {
-                std.log.err("No program with name {s}", .{name});
-                return;
-            };
+    const Self = @This();
+
+    fn loadProgram(self: *Self, program: process.Program) void {
+        std.log.info("Loading program {s}", .{program.title});
         const imports = process.Imports {
+            .allocator = self.allocator,
+            .rand = self.rand,
             .loader = .{
                 .self = @ptrCast(*anyopaque, self),
-                .loadProgram = @ptrCast(fn(*anyopaque, []const u8) void, SceneBox.loadProgram),
+                .loadProgram = @ptrCast(fn(*anyopaque, process.Program) void, Self.loadProgram),
             },
         };
-        const program = Process.init(@ptrCast([*c]const u8, name),
-                self.allocator, self.rand, vtable, imports) catch |err| {
+        const proc = Process.init(program, imports) catch |err| {
             std.log.err("Failed to init program with err={}", .{err});
             return;
         };
-        self.queuedPrograms.append(program) catch {
+        self.queuedPrograms.append(proc) catch {
             std.log.err("self.programs.append(program)", .{});
             return;
         };
     }
 
-    pub fn init(allocator: Allocator, rand: std.rand.Random) !*SceneBox {
-        var box = try allocator.create(SceneBox);
-        box.* = SceneBox {
+    pub fn init(allocator: Allocator, rand: std.rand.Random) !*Self {
+        var box = try allocator.create(Self);
+        box.* = Self {
             .allocator = allocator,
             .programs = ArrayList(Process).init(allocator),
             .queuedPrograms = ArrayList(Process).init(allocator),
             .rand = rand,
         };
-        box.loadProgram("Loader");
+        box.loadProgram(Launcher.app);
         return box;
     }
 
-    pub fn deinit(self: *SceneBox) void {
+    pub fn deinit(self: *Self) void {
         for (self.programs.items) |*scene| scene.deinit();
         self.programs.deinit();
         self.queuedPrograms.deinit();
@@ -79,7 +71,7 @@ pub const SceneBox = struct {
 
     /// Gets a Scene index from an SDL window ID ; used for matching events to programs
     /// Returns an index so we can modify the list if need be
-    fn getSceneIndexFromWindowId(self: *SceneBox, id: usize) !usize {
+    fn getSceneIndexFromWindowId(self: *Self, id: usize) !usize {
         for (self.programs.items) |scene, i| {
             if (scene.window.id == id) {
                 return i;
@@ -88,7 +80,7 @@ pub const SceneBox = struct {
         return error.WindowNotFound;
     }
 
-    fn handleInput(self: *SceneBox) !void {
+    fn handleInput(self: *Self) !void {
         // update each program's Input
         for (self.programs.items) |*program| {
             program.input.startFrame();
@@ -137,13 +129,13 @@ pub const SceneBox = struct {
         }
     }
 
-    fn keepRunning(self: *SceneBox) bool {
+    fn keepRunning(self: *Self) bool {
         if (self.shouldQuit) return false;
         const n_processes = self.programs.items.len + self.queuedPrograms.items.len;
         return n_processes > 0;
     }
 
-    pub fn run(self: *SceneBox) !void {
+    pub fn run(self: *Self) !void {
         while (self.keepRunning()) {
             // Add queued programs into the list
             for (self.queuedPrograms.items) |program| {
