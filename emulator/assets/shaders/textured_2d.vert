@@ -12,8 +12,9 @@ out vec3 vPos;
 out vec2 vUV;
 
 void main() {
-    gl_Position = uModelViewProjection*aPos;
-    vPos = gl_Position.xyz;
     vAttrPos = aPos.xyz;
+    // gl_Position = uModelViewProjection * aPos;
+    gl_Position = aPos;
+    vPos = gl_Position.xyz;
     vUV = uUVPos + aTexUV*uUVSize;
 }

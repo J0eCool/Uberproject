@@ -13,6 +13,7 @@ const process = @import("./process.zig");
 const Process = process.Process;
 
 const Launcher = @import("./launcher_app.zig").Launcher;
+const ArtApp = @import("./art_app.zig").ArtApp;
 const BoxApp = @import("./box_app.zig").BoxApp;
 const ShaderApp = @import("./shader_app.zig").ShaderApp;
 
@@ -39,6 +40,7 @@ pub const Kernel = struct {
             else if (std.mem.eql(u8, name, "Shader")) ShaderApp.app
             else if (std.mem.eql(u8, name, "Boxes")) BoxApp.bouncy
             else if (std.mem.eql(u8, name, "Spiral")) BoxApp.circle
+            else if (std.mem.eql(u8, name, "Art")) ArtApp.app
             else {
                 std.log.err("No program with name {s}", .{name});
                 return;

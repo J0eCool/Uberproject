@@ -7,7 +7,6 @@ const gui = @import("./gui.zig");
 const util = @import("./util.zig");
 
 const Input = @import("./input.zig").Input;
-const Launcher = @import("./launcher_app.zig").Launcher;
 const Vec2 = @import("./vec.zig").Vec2;
 
 const Allocator = std.mem.Allocator;

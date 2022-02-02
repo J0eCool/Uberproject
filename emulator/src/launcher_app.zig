@@ -46,6 +46,9 @@ pub const Launcher = struct {
         if (data.gui.button() or self.input.wasKeyJustPressed('m')) {
             loader.loadProgram(loader.self, "Boxes");
         }
+        if (data.gui.button() or self.input.wasKeyJustPressed('j')) {
+            loader.loadProgram(loader.self, "Art");
+        }
         if (data.gui.button()) {
             loader.loadProgram(loader.self, "Spiral");
         }

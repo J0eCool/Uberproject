@@ -8,6 +8,7 @@ pub const c = @cImport({
 
 pub const Int = c.GLint;
 pub const Uint = c.GLuint;
+pub const Sizei = c.GLint;
 
 pub const VERTEX_SHADER = c.GL_VERTEX_SHADER;
 pub const FRAGMENT_SHADER = c.GL_FRAGMENT_SHADER;
@@ -22,6 +23,9 @@ pub const COLOR_BUFFER_BIT = c.GL_COLOR_BUFFER_BIT;
 pub const DEPTH_BUFFER_BIT = c.GL_DEPTH_BUFFER_BIT;
 
 pub const Shader = Uint;
+
+pub const FLOAT = c.GL_FLOAT;
+pub const UNSIGNED_BYTE = c.GL_UNSIGNED_BYTE;
 
 pub fn glewInit() !void {
     const err = c.glewInit();
@@ -195,6 +199,12 @@ pub fn drawArrays(kind: Uint, start: Int, num: Int) void {
     c.glDrawArrays(kind, start, num);
 }
 
+pub fn vertexAttribPointer(index: Uint, size: Int, ty: Uint,
+        normalized: c.GLboolean, stride: Sizei, offset: usize) void {
+    c.__glewVertexAttribPointer.?(index, size, ty, normalized, stride,
+        @intToPtr(?*const anyopaque, offset));
+}
+
 //------------------------------------------------------------------------------
 // Shader Loading
 
@@ -216,4 +226,49 @@ pub fn getShaderiv(shader: Shader, info: Uint, result: *Int) void {
 }
 pub fn getProgramiv(program: Uint, info: Uint, result: *Int) void {
     c.__glewGetProgramiv.?(program, info, result);
+}
+
+//------------------------------------------------------------------------------
+// Textures
+
+pub const Texture = Uint;
+
+pub const TEXTURE_2D = c.GL_TEXTURE_2D;
+
+pub const NEAREST = c.GL_NEAREST;
+pub const LINEAR = c.GL_LINEAR;
+
+pub const TEXTURE_MIN_FILTER = c.GL_TEXTURE_MIN_FILTER;
+pub const TEXTURE_MAG_FILTER = c.GL_TEXTURE_MAG_FILTER;
+pub const TEXTURE_WRAP_S = c.GL_TEXTURE_WRAP_S;
+pub const TEXTURE_WRAP_T = c.GL_TEXTURE_WRAP_T;
+pub const CLAMP_TO_EDGE = c.GL_CLAMP_TO_EDGE;
+
+pub const RGBA = c.GL_RGBA;
+
+pub fn genTexture() Texture {
+    var id: Texture = undefined;
+    c.glGenTextures(1, &id);
+    return id;
+}
+
+pub fn bindTexture(target: Uint, id: Texture) void {
+    c.glBindTexture(target, id);
+}
+
+/// Passes texture data to the GPU
+/// `target` - texture target, e.g. TEXTURE_2D
+/// `format` - format of the pixel data (e.g. RGB)
+/// `ty` - (aka "type") type of pixel data (e.g. UNSIGNED_BYTE)
+/// `data` - the data in question
+/// see: https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
+pub fn texImage2D(target: Uint, level: Int, internal: Int,
+        width: Sizei, height: Sizei, border: Int, format: Uint,
+        ty: Uint, data: []const u8) void {
+    c.glTexImage2D(target, level, internal, width, height, border, format, ty,
+        @ptrCast(*const anyopaque, data));
+}
+
+pub fn texParameteri(target: Uint, param: Uint, val: Int) void {
+    c.glTexParameteri(target, param, val);
 }
