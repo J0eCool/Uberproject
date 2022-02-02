@@ -27,3 +27,7 @@ pub fn quit() void {
 // pub fn createWindow(title: [*c]const u8, posX: i32, posY: i32, w: i32, h: i32, xx: i32) *Window {
 //     return c.SDL_CreateWindow(title, posX, posY, w, h, xx);
 // }
+
+pub fn glSwapWindow(window: ?*c.SDL_Window) void {
+    c.SDL_GL_SwapWindow(window);
+}

@@ -16,7 +16,7 @@ pub const Texture = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, w: u32, h: u32) !Self {
+    pub fn init(allocator: Allocator, w: usize, h: usize) !Self {
         const buffer = try allocator.alloc(u8, 4*w*h);
         const id = gl.genTexture();
         const ret = Self {
