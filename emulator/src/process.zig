@@ -43,10 +43,10 @@ pub const Process = struct {
 
     stack: [stack_size]u8 = [_]u8{0} ** stack_size,
 
-    pub fn init(title: [*c]const u8, allocator: Allocator, rand: std.rand.Random,
+    pub fn init(title: []const u8, allocator: Allocator, rand: std.rand.Random,
             program: Program, imports: Imports) !Self {
         var process = Self {
-            .window = Window.init(title, 1024, 600),
+            .window = Window.init(@ptrCast([*c]const u8, title), 1024, 600),
             .input = Input {},
             .vtable = program,
             .imports = imports,

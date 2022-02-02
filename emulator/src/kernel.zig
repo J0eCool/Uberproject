@@ -13,6 +13,8 @@ const process = @import("./process.zig");
 const Process = process.Process;
 
 const Launcher = @import("./launcher_app.zig").Launcher;
+const BoxApp = @import("./box_app.zig").BoxApp;
+const ShaderApp = @import("./shader_app.zig").ShaderApp;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -30,17 +32,25 @@ pub const Kernel = struct {
 
     const Self = @This();
 
-    fn loadProgram(self: *Self, program: process.Program) void {
-        std.log.info("Loading program {s}", .{program.title});
+    fn loadProgram(self: *Self, name: []const u8) void {
+        std.log.info("Loading program {s}", .{name});
+        const program: process.Program =
+            if (std.mem.eql(u8, name, "Loader")) Launcher.app
+            else if (std.mem.eql(u8, name, "Shader")) ShaderApp.app
+            else if (std.mem.eql(u8, name, "Boxes")) BoxApp.bouncy
+            else if (std.mem.eql(u8, name, "Spiral")) BoxApp.circle
+            else {
+                std.log.err("No program with name {s}", .{name});
+                return;
+            };
         const imports = process.Imports {
-            .allocator = self.allocator,
-            .rand = self.rand,
             .loader = .{
                 .self = @ptrCast(*anyopaque, self),
-                .loadProgram = @ptrCast(fn(*anyopaque, process.Program) void, Self.loadProgram),
+                .loadProgram = @ptrCast(fn(*anyopaque, []const u8) void, Self.loadProgram),
             },
         };
-        const proc = Process.init(program, imports) catch |err| {
+
+        const proc = Process.init(name, self.allocator, self.rand, program, imports) catch |err| {
             std.log.err("Failed to init program with err={}", .{err});
             return;
         };
@@ -58,7 +68,7 @@ pub const Kernel = struct {
             .queuedPrograms = ArrayList(Process).init(allocator),
             .rand = rand,
         };
-        box.loadProgram(Launcher.app);
+        box.loadProgram("Loader");
         return box;
     }
 
