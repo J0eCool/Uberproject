@@ -31,7 +31,7 @@ pub const Texture = struct {
         ret.sendData();
 
         // Set up texture parameters, min/mag filter, yada
-        const filter = gl.LINEAR;
+        const filter = gl.NEAREST;
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

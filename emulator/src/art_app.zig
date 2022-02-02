@@ -2,6 +2,7 @@ const std = @import("std");
 const sdl = @import("./sdl.zig");
 const gl = @import("./opengl.zig");
 
+const color = @import("./color.zig");
 const gfx = @import("./graphics.zig");
 const gui = @import("./gui.zig");
 const util = @import("./util.zig");
@@ -30,6 +31,8 @@ pub const ArtApp = struct {
         box_vbo: gl.Buffer,
         box_vao: gl.VertexArray,
     };
+
+    const Self = @This();
 
     fn init(self: *Process) void {
         const data = self.getData(Data);
@@ -63,8 +66,8 @@ pub const ArtApp = struct {
         gl.vertexAttribPointer(uv, 2, gl.c.GL_FLOAT, gl.c.GL_FALSE, 5 * @sizeOf(f32), 3*@sizeOf(f32));
 
         // Texture data
-        data.w = 1024;
-        data.h = 1024;
+        data.w = 256;
+        data.h = 128;
         data.texture = Texture.init(self.allocator, data.w, data.h) catch unreachable;
         data.canvas = self.allocator.alloc(f32, data.w*data.h) catch unreachable;
 
@@ -87,6 +90,33 @@ pub const ArtApp = struct {
         data.time += dt;
     }
 
+    fn sample(self: *Process, t: f32, from: color.RGB, to: color.RGB) color.RGB {
+        return if (self.rand.float(f32) > t) from else to;
+    }
+
+    fn gradientMap(self: *Process, val: f32) color.RGB {
+        // gradient from "bad" entropy to "good" entropy
+        const bad = color.HSV.init(0, 0, self.rand.float(f32)).toRGB();
+        const good = color.HSV.init(self.rand.float(f32)*360, 1, 1).toRGB();
+
+        // constant colors for the middle
+        const lo = color.RGB.init(1, 1, 1);
+        const hi = color.RGB.init(0, 0, 0);
+
+        const p0 = 0.10; // 0.25 is good too
+        const p1 = 1-p0;
+        if (val < p0) {
+            const t = val / p0;
+            return sample(self, t, bad, lo);
+        } else if (val < p1) {
+            const t = (val - p0) / (p1 - p0);
+            return color.RGB.lerp(t, lo, hi);
+        } else {
+            const t = (val - p1) / (1 - p1);
+            return sample(self, t, hi, good);
+        }
+    }
+
     fn draw(self: *Process) void {
         const data = self.getData(Data);
         gl.viewport(0, 0, self.window.w, self.window.h);
@@ -98,11 +128,10 @@ pub const ArtApp = struct {
         data.texture.bind();
         const buffer = data.texture.buffer;
         for (util.times(data.w * data.h)) |_, i| {
-            const v = data.canvas[i];
-            const c: u8 = if (self.rand.float(f32) > v) 0 else 255;
-            buffer[4*i + 0] = c;
-            buffer[4*i + 1] = c;
-            buffer[4*i + 2] = c;
+            const c = gradientMap(self, data.canvas[i]);
+            buffer[4*i + 0] = @floatToInt(u8, 255*c.r);
+            buffer[4*i + 1] = @floatToInt(u8, 255*c.g);
+            buffer[4*i + 2] = @floatToInt(u8, 255*c.b);
             buffer[4*i + 3] = 255;
         }
         data.texture.sendData();

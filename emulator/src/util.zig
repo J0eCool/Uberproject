@@ -40,3 +40,8 @@ pub fn readWholeFile(allocator: std.mem.Allocator, rel_path: []const u8) ![:0]u8
     const file = try std.fs.openFileAbsolute(path, .{});
     return try file.readToEndAllocOptions(allocator, 1024*1024, null, @alignOf(u8), 0);
 }
+
+pub fn lerp(t: f32, lo: f32, hi: f32) f32 {
+    const t0 = std.math.clamp(t, 0, 1);
+    return (1 - t0) * lo + t0 * hi;
+}

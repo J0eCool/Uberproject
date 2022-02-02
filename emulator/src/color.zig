@@ -36,6 +36,14 @@ pub const RGB = packed struct {
         const v = cmax;
         return HSV.init(h, s, v);
     }
+
+    pub fn lerp(t: f32, from: RGB, to: RGB) RGB {
+        return RGB.init(
+            util.lerp(t, from.r, to.r),
+            util.lerp(t, from.g, to.g),
+            util.lerp(t, from.b, to.b),
+        );
+    }
 };
 
 /// A color in the HSV color space
