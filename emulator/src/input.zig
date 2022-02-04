@@ -15,11 +15,17 @@ const KeyState = enum(u2) {
 
 pub const Input = struct {
     keys: [n_keys]KeyState = .{KeyState.Released} ** n_keys,
+    mouse_x: i32 = 0,
+    mouse_y: i32 = 0,
+    mouse_buttons: [n_mouse_buttons]KeyState = .{KeyState.Released} ** n_mouse_buttons,
 
     /// Called at the start of each frame, before new input events are processed
     pub fn startFrame(self: *Input) void {
         for (self.keys) |*key| {
             key.* = @intToEnum(KeyState, @enumToInt(key.*) & 0b10);
+        }
+        for (self.mouse_buttons) |*btn| {
+            btn.* = @intToEnum(KeyState, @enumToInt(btn.*) & 0b10);
         }
     }
 
@@ -37,15 +43,35 @@ pub const Input = struct {
                     self.keys[idx] = KeyState.WentUp;
                 }
             },
+            c.SDL_MOUSEMOTION => {
+                self.mouse_x = event.motion.x;
+                self.mouse_y = event.motion.y;
+            },
+            c.SDL_MOUSEBUTTONDOWN => {
+                const idx = @intCast(usize, event.button.button);
+                if (idx < n_mouse_buttons) {
+                    self.mouse_buttons[idx] = KeyState.WentDown;
+                }
+            },
+            c.SDL_MOUSEBUTTONUP => {
+                const idx = @intCast(usize, event.button.button);
+                if (idx < n_mouse_buttons) {
+                    self.mouse_buttons[idx] = KeyState.WentUp;
+                }
+            },
             else => {},
         }
     }
 
     // Polling funcs
     pub fn isKeyHeld(self: Input, key: u8) bool {
-        return self.keys[key] & KeyState.Held;
+        return @enumToInt(self.keys[key]) & @enumToInt(KeyState.Held) != 0;
     }
     pub fn wasKeyJustPressed(self: Input, key: u8) bool {
         return self.keys[key] == KeyState.WentDown;
+    }
+
+    pub fn isLeftMouseButtonHeld(self: Input) bool {
+        return @enumToInt(self.mouse_buttons[1]) & @enumToInt(KeyState.Held) != 0;
     }
 };

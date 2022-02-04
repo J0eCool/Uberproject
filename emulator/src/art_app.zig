@@ -69,8 +69,8 @@ pub const ArtApp = struct {
         gl.vertexAttribPointer(uv, 2, gl.c.GL_FLOAT, gl.c.GL_FALSE, 5 * @sizeOf(f32), 3*@sizeOf(f32));
 
         // Texture data
-        data.w = 1024;
-        data.h = 512;
+        data.w = 256;
+        data.h = 256;
         data.texture = Texture.init(self.allocator, data.w, data.h) catch unreachable;
         data.canvas = self.allocator.alloc(f32, data.w*data.h) catch unreachable;
 
@@ -91,6 +91,48 @@ pub const ArtApp = struct {
     fn update(self: *Process, dt: f32) void {
         const data = self.getData(Data);
         data.time += dt;
+
+        if (self.input.isLeftMouseButtonHeld()) {
+            const screen_x = @intToFloat(f32, self.input.mouse_x) / @intToFloat(f32, self.window.w);
+            const screen_y = 1 - @intToFloat(f32, self.input.mouse_y) / @intToFloat(f32, self.window.h);
+            const mx = @floatToInt(i32, screen_x * @intToFloat(f32, data.w));
+            const my = @floatToInt(i32, screen_y * @intToFloat(f32, data.h));
+            const r = 5;
+            var i: i32 = -r;
+            while (i <= r) : (i += 1) {
+                const x = mx + i;
+                if (x < 0 or x >= @intCast(i32, data.w)) continue;
+                var j: i32 = -r;
+                while (j <= r) : (j += 1) {
+                    const y = my + j;
+                    if (y < 0 or y >= @intCast(i32, data.h)) continue;
+                    if (i*i + j*j <= r*r){
+                        const idx = @intCast(usize, x) + data.w*@intCast(usize, y);
+                        data.canvas[idx] = self.rand.float(f32);
+                    }
+                }
+            }
+        }
+    }
+
+    fn draw(self: *Process) void {
+        const data = self.getData(Data);
+        gl.viewport(0, 0, self.window.w, self.window.h);
+        gl.clearColor(0.1, 0.12, 0.15, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        updateTextureData(self);
+
+        data.program.use();
+        data.program.uniform1f("uTime", data.time);
+        data.program.uniform2f("uUVPos", 0, 0);
+        data.program.uniform2f("uUVSize", 1, 1);
+        data.program.uniform3f("uColor", 1, 1, 1);
+        data.texture.bind();
+        gl.bindVertexArray(data.box_vao);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        sdl.glSwapWindow(self.window.ptr);
     }
 
     /// Randomly sample between two colors - used as a blend function to dither
@@ -165,26 +207,6 @@ pub const ArtApp = struct {
             buffer[4*i + 3] = 255;
         }
         data.texture.sendData();
-    }
-
-    fn draw(self: *Process) void {
-        const data = self.getData(Data);
-        gl.viewport(0, 0, self.window.w, self.window.h);
-        gl.clearColor(0.1, 0.12, 0.15, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        updateTextureData(self);
-
-        data.program.use();
-        data.program.uniform1f("uTime", data.time);
-        data.program.uniform2f("uUVPos", 0, 0);
-        data.program.uniform2f("uUVSize", 1, 1);
-        data.program.uniform3f("uColor", 1, 1, 1);
-        data.texture.bind();
-        gl.bindVertexArray(data.box_vao);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        sdl.glSwapWindow(self.window.ptr);
     }
 
     pub const app = process.Program {
