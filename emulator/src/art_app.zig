@@ -22,6 +22,13 @@ const process = @import("./process.zig");
 const Process = process.Process;
 
 pub const ArtApp = struct {
+    pub const app = process.Program {
+        .init = init,
+        .deinit = deinit,
+        .update = update,
+        .draw = draw,
+    };
+
     const Data = struct {
         program: gl.Program,
         texture: Texture,
@@ -30,6 +37,10 @@ pub const ArtApp = struct {
         canvas: []f32,
         w: usize,
         h: usize,
+
+        brush_size: f32 = 5.0,
+        brush_color: f32 = 1.0,
+        brush_opacity: f32 = 1.0,
 
         box_vbo: gl.Buffer,
         box_vao: gl.VertexArray,
@@ -45,6 +56,10 @@ pub const ArtApp = struct {
         const frag = gl.loadShader(gl.FRAGMENT_SHADER,
             @embedFile("../assets/shaders/textured_2d.frag")) catch unreachable;
         data.program = gl.Program.init(vert, frag) catch unreachable;
+
+        data.brush_size = 5.0;
+        data.brush_color = 1.0;
+        data.brush_opacity = 1.0;
 
         // Model data
         data.box_vbo = gl.genBuffer();
@@ -69,8 +84,8 @@ pub const ArtApp = struct {
         gl.vertexAttribPointer(uv, 2, gl.c.GL_FLOAT, gl.c.GL_FALSE, 5 * @sizeOf(f32), 3*@sizeOf(f32));
 
         // Texture data
-        data.w = 256;
-        data.h = 256;
+        data.w = 300;
+        data.h = 200;
         data.texture = Texture.init(self.allocator, data.w, data.h) catch unreachable;
         data.canvas = self.allocator.alloc(f32, data.w*data.h) catch unreachable;
 
@@ -92,12 +107,18 @@ pub const ArtApp = struct {
         const data = self.getData(Data);
         data.time += dt;
 
+        // Set brush from keybaord
+        data.brush_size = keyRange(self, "123456", data.brush_size, 1.0, 13.0);
+        data.brush_color = keyRange(self, "qwert", data.brush_color, 0.0, 1.0);
+        data.brush_opacity = keyRange(self, "asdfg", data.brush_opacity, 0.1, 1.0);
+
+        // Draw when button is held
         if (self.input.isLeftMouseButtonHeld()) {
             const screen_x = @intToFloat(f32, self.input.mouse_x) / @intToFloat(f32, self.window.w);
             const screen_y = 1 - @intToFloat(f32, self.input.mouse_y) / @intToFloat(f32, self.window.h);
             const mx = @floatToInt(i32, screen_x * @intToFloat(f32, data.w));
             const my = @floatToInt(i32, screen_y * @intToFloat(f32, data.h));
-            const r = 5;
+            const r = @floatToInt(i32, data.brush_size);
             var i: i32 = -r;
             while (i <= r) : (i += 1) {
                 const x = mx + i;
@@ -108,11 +129,21 @@ pub const ArtApp = struct {
                     if (y < 0 or y >= @intCast(i32, data.h)) continue;
                     if (i*i + j*j <= r*r){
                         const idx = @intCast(usize, x) + data.w*@intCast(usize, y);
-                        data.canvas[idx] = self.rand.float(f32);
+                        data.canvas[idx] = util.lerp(data.brush_opacity, data.canvas[idx], data.brush_color);
                     }
                 }
             }
         }
+    }
+
+    fn keyRange(self: *Process, keys: []const u8, cur: f32, lo: f32, hi: f32) f32 {
+        for (keys) |key, i| {
+            if (self.input.wasKeyJustPressed(key)) {
+                const t = @intToFloat(f32, i) / @intToFloat(f32, keys.len-1);
+                return util.lerp(t, lo, hi);
+            }
+        }
+        return cur;
     }
 
     fn draw(self: *Process) void {
@@ -194,13 +225,14 @@ pub const ArtApp = struct {
         std.debug.assert(data.h == data.texture.h);
         const buffer = data.texture.buffer;
         for (data.canvas) |val, i| {
-            const c =
-                if (i < data.canvas.len/3)
-                    gradientMapA(self, val)
-                else if (i < data.canvas.len*2/3)
-                    gradientMapC(self, val)
-                else
-                    gradientMapB(self, val);
+            const c = gradientMapA(self, val);
+            // const c =
+            //     if (i < data.canvas.len/3)
+            //         gradientMapA(self, val)
+            //     else if (i < data.canvas.len*2/3)
+            //         gradientMapC(self, val)
+            //     else
+            //         gradientMapB(self, val);
             buffer[4*i + 0] = @floatToInt(u8, 255*c.r);
             buffer[4*i + 1] = @floatToInt(u8, 255*c.g);
             buffer[4*i + 2] = @floatToInt(u8, 255*c.b);
@@ -208,11 +240,4 @@ pub const ArtApp = struct {
         }
         data.texture.sendData();
     }
-
-    pub const app = process.Program {
-        .init = init,
-        .deinit = deinit,
-        .update = update,
-        .draw = draw,
-    };
 };
