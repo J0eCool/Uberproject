@@ -2,10 +2,13 @@ const std = @import("std");
 const sdl = @import("./sdl.zig");
 const gl = @import("./opengl.zig");
 
-const color = @import("./color.zig");
 const gfx = @import("./graphics.zig");
 const gui = @import("./gui.zig");
 const util = @import("./util.zig");
+
+const color = @import("./color.zig");
+const RGB = color.RGB;
+const HSV = color.HSV;
 
 const Input = @import("./input.zig").Input;
 const Vec2 = @import("./vec.zig").Vec2;
@@ -66,8 +69,8 @@ pub const ArtApp = struct {
         gl.vertexAttribPointer(uv, 2, gl.c.GL_FLOAT, gl.c.GL_FALSE, 5 * @sizeOf(f32), 3*@sizeOf(f32));
 
         // Texture data
-        data.w = 256;
-        data.h = 128;
+        data.w = 1024;
+        data.h = 512;
         data.texture = Texture.init(self.allocator, data.w, data.h) catch unreachable;
         data.canvas = self.allocator.alloc(f32, data.w*data.h) catch unreachable;
 
@@ -90,31 +93,78 @@ pub const ArtApp = struct {
         data.time += dt;
     }
 
-    fn sample(self: *Process, t: f32, from: color.RGB, to: color.RGB) color.RGB {
+    /// Randomly sample between two colors - used as a blend function to dither
+    inline fn sample(self: *Process, t: f32, from: RGB, to: RGB) RGB {
         return if (self.rand.float(f32) > t) from else to;
     }
 
-    fn gradientMap(self: *Process, val: f32) color.RGB {
-        // gradient from "bad" entropy to "good" entropy
-        const bad = color.HSV.init(0, 0, self.rand.float(f32)).toRGB();
-        const good = color.HSV.init(self.rand.float(f32)*360, 1, 1).toRGB();
+    fn randomHue(self: *Process) RGB {
+        return HSV.init(self.rand.float(f32)*360, 1, 1).toRGB();
+    }
+    fn randomValue(self: *Process) RGB {
+        const value = self.rand.float(f32);
+        return RGB.init(value, value, value);
+    }
 
-        // constant colors for the middle
-        const lo = color.RGB.init(1, 1, 1);
-        const hi = color.RGB.init(0, 0, 0);
-
-        const p0 = 0.10; // 0.25 is good too
+    /// Complex gradient, slow
+    fn gradientMapA(self: *Process, val: f32) RGB {
+        const p0 = 0.25;
         const p1 = 1-p0;
         if (val < p0) {
             const t = val / p0;
-            return sample(self, t, bad, lo);
+            return sample(self, t, randomValue(self).scale(1-t/2), RGB.white);
         } else if (val < p1) {
             const t = (val - p0) / (p1 - p0);
-            return color.RGB.lerp(t, lo, hi);
+            return RGB.lerp(t, RGB.white, RGB.black);
         } else {
             const t = (val - p1) / (1 - p1);
-            return sample(self, t, hi, good);
+            return sample(self, t, RGB.black, randomHue(self));
         }
+    }
+
+    /// Simple sampling gradient
+    fn gradientMapB(self: *Process, val: f32) RGB {
+        const lo = RGB.init(0, 0, 0);
+        const hi = RGB.init(1, 1, 1);
+        return sample(self, val, lo, hi);
+    }
+
+    /// Inverse of gradientA?
+    fn gradientMapC(self: *Process, val: f32) RGB {
+        _ = self;
+        const p0 = 0.25;
+        const p1 = 1-p0;
+        if (val < p0) {
+            const t = val / p0;
+            return RGB.lerp(t, RGB.white.scale(0.5), RGB.white);
+        } else if (val < p1) {
+            const t = (val - p0) / (p1 - p0);
+            return RGB.lerp(t, RGB.white, RGB.black);
+        } else {
+            const t = (val - p1) / (1 - p1);
+            return RGB.lerp(t, RGB.black, RGB.white.scale(0.75));
+        }
+    }
+
+    fn updateTextureData(self: *Process) void {
+        const data = self.getData(Data);
+        std.debug.assert(data.w == data.texture.w);
+        std.debug.assert(data.h == data.texture.h);
+        const buffer = data.texture.buffer;
+        for (data.canvas) |val, i| {
+            const c =
+                if (i < data.canvas.len/3)
+                    gradientMapA(self, val)
+                else if (i < data.canvas.len*2/3)
+                    gradientMapC(self, val)
+                else
+                    gradientMapB(self, val);
+            buffer[4*i + 0] = @floatToInt(u8, 255*c.r);
+            buffer[4*i + 1] = @floatToInt(u8, 255*c.g);
+            buffer[4*i + 2] = @floatToInt(u8, 255*c.b);
+            buffer[4*i + 3] = 255;
+        }
+        data.texture.sendData();
     }
 
     fn draw(self: *Process) void {
@@ -123,24 +173,14 @@ pub const ArtApp = struct {
         gl.clearColor(0.1, 0.12, 0.15, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        std.debug.assert(data.w == data.texture.w);
-        std.debug.assert(data.h == data.texture.h);
-        data.texture.bind();
-        const buffer = data.texture.buffer;
-        for (util.times(data.w * data.h)) |_, i| {
-            const c = gradientMap(self, data.canvas[i]);
-            buffer[4*i + 0] = @floatToInt(u8, 255*c.r);
-            buffer[4*i + 1] = @floatToInt(u8, 255*c.g);
-            buffer[4*i + 2] = @floatToInt(u8, 255*c.b);
-            buffer[4*i + 3] = 255;
-        }
-        data.texture.sendData();
+        updateTextureData(self);
 
         data.program.use();
         data.program.uniform1f("uTime", data.time);
         data.program.uniform2f("uUVPos", 0, 0);
         data.program.uniform2f("uUVSize", 1, 1);
         data.program.uniform3f("uColor", 1, 1, 1);
+        data.texture.bind();
         gl.bindVertexArray(data.box_vao);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 

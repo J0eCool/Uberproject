@@ -45,3 +45,14 @@ pub fn lerp(t: f32, lo: f32, hi: f32) f32 {
     const t0 = std.math.clamp(t, 0, 1);
     return (1 - t0) * lo + t0 * hi;
 }
+
+test "util.lerp" {
+    // boundary conditions
+    try expectEqual(5, lerp(0, 5, 15));
+    try expectEqual(15, lerp(1, 5, 15));
+
+    // clamp lerp to either end
+    try expectEqual(10, lerp(1.5, 2, 10));
+
+    try expectEqual(10, lerp(0.5, 5, 15));
+}

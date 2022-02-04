@@ -44,7 +44,15 @@ pub const RGB = packed struct {
             util.lerp(t, from.b, to.b),
         );
     }
+
+    pub fn scale(c: RGB, s: f32) RGB {
+        return RGB.init(s * c.r, s * c.g, s * c.b);
+    }
+
+    pub const white = RGB.init(1, 1, 1);
+    pub const black = RGB.init(0, 0, 0);
 };
+
 
 /// A color in the HSV color space
 pub const HSV = struct {
