@@ -27,7 +27,9 @@ preloads['preload://tweet-searcher'] = {
             const sync = () => imports.tweetSync.fetchTweetsForUser('CountJ0eCool', load);
             load();
             sync();
-            setInterval(sync, 60 * 1000);
+            // rate limited until feb 10th :D
+            // need to do this less often, maybe manual sync button?
+            // setInterval(sync, 60 * 1000);
 
             imports.vue.setAppHtml(`
                 <h3>Tweet Search</h3>
