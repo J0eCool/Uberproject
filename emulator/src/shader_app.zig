@@ -43,7 +43,9 @@ pub const ShaderApp = struct {
     };
 
     // note: path is relative to zig-out/bin/emulator.exe
-    const frag_file = "assets/shaders/2-fractal.frag";
+    // consider adding a feature to change which file is selected;
+    // L+R arrow keys to cycle through shaders in the folder, just open to this one by default
+    var frag_file: []const u8 = "assets/shaders/2-fractal.frag";
 
     fn init(self: *Process) void {
         const data = self.getData(Data);
