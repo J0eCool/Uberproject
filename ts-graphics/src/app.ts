@@ -11,6 +11,10 @@ app.get('*', (req, res) => {
     if (req.path == '/') {
         filename = `${dir}/shadertoy.html`;
     }
+    if (fs.existsSync(`dist/${filename}`)) {
+        // check dist/static for compiled client-side .ts
+        filename = `dist/${filename}`;
+    }
     fs.readFile(filename, (err, data) => {
         if (err) {
             console.error(`Couldn't load file ${filename}`, err);
