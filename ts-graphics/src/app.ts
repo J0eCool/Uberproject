@@ -11,15 +11,18 @@ function getFilename(requested: string): string {
     if (requested == '/') {
         ret = `${dir}/index.html`;
     }
+    if (fs.existsSync(ret)) {
+        return ret;
+    }
     
     // check dist/static for compiled client-side .ts
     const tsDistDir = 'dist/public';
-    const altPath = `${tsDistDir}${requested}`;
-    if (fs.existsSync(altPath)) {
-        ret = altPath;
+    ret = `${tsDistDir}${requested}`;
+    if (fs.existsSync(ret)) {
+        return ret;
     }
 
-    return ret;
+    throw new Error(`File for path "${requested}" not found`);
 }
 
 app.get('*', (req, res) => {
