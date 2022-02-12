@@ -15,7 +15,7 @@ function unnull<T>(val: T|null): T {
     return val;
 }
 
-async function compileShader(gl: WebGLRenderingContextBase, kind: number, filename: string)  {
+async function compileShader(gl: WebGLRenderingContextBase, kind: number, filename: string): Promise<WebGLShader> {
     const shader = unnull(gl.createShader(kind));
     const text = await (await fetch(filename)).text();
     gl.shaderSource(shader, text);
@@ -27,7 +27,7 @@ async function compileShader(gl: WebGLRenderingContextBase, kind: number, filena
     return shader;
 }
 
-async function start() {
+async function start(): Promise<void> {
     const canvas = <HTMLCanvasElement>unnull(document.getElementById('canvas'));
     const gl = unnull(canvas.getContext('webgl2'));
 

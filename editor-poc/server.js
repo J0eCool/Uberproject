@@ -24,7 +24,7 @@ app.get('/tweets', async (req, res) => {
         let done = false;
         while (!done) {
             let timeline = await twitter.v2.userTimeline(userid, {
-                max_results: 100,
+                max_results: 10,
                 pagination_token: nextToken,
                 'tweet.fields': [
                     'created_at',
