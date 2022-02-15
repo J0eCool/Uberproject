@@ -1,0 +1,15 @@
+{
+    "nextId": 2,
+    "notes": {
+        "0": {
+            "text": "Let there be light",
+            "contains": [1],
+            "repliesTo": []
+        },
+        "1": {
+            "text": "So it is written",
+            "contains": [],
+            "repliesTo": []
+        }
+    }
+}

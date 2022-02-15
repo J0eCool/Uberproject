@@ -8,7 +8,12 @@ function App(props: any) {
     </div>;
 }
 
-let app = <App />;
-ReactDOM.render(app, document.getElementById('app'));
+async function main() {
+    let app = <App />;
+    ReactDOM.render(app, document.getElementById('app'));
 
-console.log('ey');
+    const data = await (await fetch('./notes')).json();
+    console.log(data);
+}
+
+main();
