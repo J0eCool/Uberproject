@@ -6,9 +6,9 @@ export class Note {
     /** Data associated with this note */
     text: string;
     /** Sub-notes that make up the body of this note */
-    contains: Array<Note> = [];
+    contains: Note[] = [];
     /** Notes that this note points to */
-    repliesTo: Array<Note> = [];
+    repliesTo: Note[] = [];
 
     constructor(id: number, text: string) {
         this.id = id;
@@ -18,8 +18,8 @@ export class Note {
 
 interface NoteJson {
     text: string;
-    contains: Array<number>;
-    repliesTo: Array<number>;
+    contains: number[];
+    repliesTo: number[];
 }
 interface NoteDataJson {
     nextId: number;
@@ -31,26 +31,42 @@ export class NoteData {
     nextId: number = 0;
     notes: Record<number, Note> = {};
 
-    public static fromJson(raw: NoteDataJson): NoteData {
+    public static fromJson(json: NoteDataJson): NoteData {
         const data = new NoteData();
-        data.nextId = raw['nextId'];
+        data.nextId = json['nextId'];
 
         // First pass: initialize all the notes
-        for (const [id, rawNote] of Object.entries(raw['notes'])) {
-            data.notes[+id] = new Note(+id, rawNote['text']);
+        for (const [id, jNote] of Object.entries(json['notes'])) {
+            data.notes[+id] = new Note(+id, jNote['text']);
         }
 
         // Second pass: convert ids to references
-        for (const [id, rawNote] of Object.entries(raw['notes'])) {
+        for (const [id, jNote] of Object.entries(json['notes'])) {
             const note: Note = data.notes[+id];
-            for (const otherId of rawNote['contains']) {
+            for (const otherId of jNote['contains']) {
                 note.contains.push(data.notes[otherId]);
             }
-            for (const otherId of rawNote['repliesTo']) {
+            for (const otherId of jNote['repliesTo']) {
                 note.repliesTo.push(data.notes[otherId]);
             }
         }
 
+        
         return data;
+    }
+
+    toJson(): NoteDataJson {
+        const json: NoteDataJson = {
+            nextId: this.nextId,
+            notes: {},
+        };
+        for (const note of Object.values(this.notes)) {
+            json.notes[note.id] = {
+                text: note.text,
+                contains: note.contains.map(n => n.id),
+                repliesTo: note.repliesTo.map(n => n.id),
+            };
+        }
+        return json;
     }
 }

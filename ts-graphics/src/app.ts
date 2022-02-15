@@ -64,7 +64,7 @@ function main(): void {
     const app = express();
 
     app.get('/notes', (req, res) => {
-        sendFile('data/notes.json', res);
+        res.send(noteData.toJson());
     });
     
     app.get('*', (req, res) => {
