@@ -14,9 +14,11 @@ function NoteView(props: { note: Note }) {
 }
 
 function App(props: { data: NoteData }) {
-    console.log(props.data);
+    // Only show notes if they aren't part of some larger note
     return <div>
-        {Object.values(props.data.notes).map(n => <NoteView key={n.id} note={n} />)}
+        {Object.values(props.data.notes).map(n => n.containedIn.length
+            ? null
+            : <NoteView key={n.id} note={n} />)}
     </div>;
 }
 

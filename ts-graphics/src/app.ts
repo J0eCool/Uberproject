@@ -58,7 +58,6 @@ function main(): void {
     var noteData: NoteData;
     loadFile('data/notes.json', null, (data) => {
         noteData = NoteData.fromJson(JSON.parse(data.toString('utf8')));
-        console.log('loaded notes:', noteData);
     });
 
     const app = express();

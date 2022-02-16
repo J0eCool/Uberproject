@@ -7,8 +7,12 @@ export class Note {
     text: string;
     /** Sub-notes that make up the body of this note */
     contains: Note[] = [];
+    /** Notes that this note is a sub-note of */
+    containedIn: Note[] = [];
     /** Notes that this note points to */
     repliesTo: Note[] = [];
+    /** Notes that point to this note */
+    replies: Note[] = [];
 
     constructor(id: number, text: string) {
         this.id = id;
@@ -44,10 +48,14 @@ export class NoteData {
         for (const [id, jNote] of Object.entries(json['notes'])) {
             const note: Note = data.notes[+id];
             for (const otherId of jNote['contains']) {
-                note.contains.push(data.notes[otherId]);
+                const other = data.notes[otherId];
+                note.contains.push(other);
+                other.containedIn.push(note);
             }
             for (const otherId of jNote['repliesTo']) {
-                note.repliesTo.push(data.notes[otherId]);
+                const other = data.notes[otherId];
+                note.repliesTo.push(other);
+                other.replies.push(note);
             }
         }
 
