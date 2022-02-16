@@ -10,6 +10,7 @@ function NoteView(props: { note: Note }) {
         <ul>{props.note.contains.map(n =>
             <li key={n.id}><NoteView note={n} /></li>)
         }</ul>
+        ({props.note.created.toLocaleString()})
     </div>;
 }
 

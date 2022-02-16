@@ -13,6 +13,8 @@ export class Note {
     repliesTo: Note[] = [];
     /** Notes that point to this note */
     replies: Note[] = [];
+    /** Time this note was created */
+    created: Date = new Date();
 
     constructor(id: number, text: string) {
         this.id = id;
@@ -24,6 +26,7 @@ interface NoteJson {
     text: string;
     contains: number[];
     repliesTo: number[];
+    created: number;
 }
 interface NoteDataJson {
     nextId: number;
@@ -41,7 +44,9 @@ export class NoteData {
 
         // First pass: initialize all the notes
         for (const [id, jNote] of Object.entries(json['notes'])) {
-            data.notes[+id] = new Note(+id, jNote['text']);
+            const note = new Note(+id, jNote['text']);
+            note.created = new Date(jNote['created']);
+            data.notes[+id] = note;
         }
 
         // Second pass: convert ids to references
@@ -73,6 +78,7 @@ export class NoteData {
                 text: note.text,
                 contains: note.contains.map(n => n.id),
                 repliesTo: note.repliesTo.map(n => n.id),
+                created: +note.created,
             };
         }
         return json;
