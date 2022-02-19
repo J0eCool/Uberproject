@@ -64,7 +64,6 @@ export class NoteData {
             }
         }
 
-        
         return data;
     }
 

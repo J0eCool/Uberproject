@@ -17,7 +17,7 @@ function getFilename(requested: string): string {
     if (fs.existsSync(ret)) {
         return ret;
     }
-    
+
     // check dist/static for compiled client-side .ts
     ret = `dist/public${requested}`;
     if (fs.existsSync(ret)) {
@@ -62,16 +62,24 @@ function main(): void {
 
     const app = express();
 
+    // parses `Content-Type: application/json` by default
+    app.use(express.json());
+
     app.get('/notes', (req, res) => {
         res.send(noteData.toJson());
     });
-    
+    app.put('/notes', (req, res) => {
+        noteData = NoteData.fromJson(req.body);
+        // todo: save to disk (maybe do validation)
+        res.sendStatus(200);
+    });
+
     app.get('*', (req, res) => {
         console.log(`GET for ${req.path}`);
         const path = getFilename(req.path);
         sendFile(path, res);
     });
-    
+
     app.listen(PORT, () => {
         console.log(`Express listening at http://localhost:${PORT}`);
     });
