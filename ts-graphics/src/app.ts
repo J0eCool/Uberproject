@@ -74,6 +74,10 @@ function main(): void {
         res.sendStatus(200);
     });
 
+    // todo: make a /shaders endpoint and turn shadertoy into a shader editor
+    // store shaders in data/shaders dir
+    // in general store dynamic data in data/ folder
+
     app.get('*', (req, res) => {
         console.log(`GET for ${req.path}`);
         const path = getFilename(req.path);

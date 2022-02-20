@@ -22,9 +22,29 @@ async function compileShader(gl: WebGLRenderingContextBase, kind: number, filena
     gl.compileShader(shader);
 
     if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) == 0) {
-        console.error(gl.getShaderInfoLog(shader));
+        throw new Error(gl.getShaderInfoLog(shader));
     }
     return shader;
+}
+
+async function linkProgram(gl: WebGLRenderingContextBase, vert: WebGLShader, frag: WebGLShader): Promise<WebGLProgram> {
+    const program = unnull(gl.createProgram());
+    gl.attachShader(program, vert);
+    gl.attachShader(program, frag);
+    gl.linkProgram(program);
+    gl.useProgram(program);
+    // gl.detachShader(program, vert);
+    // gl.detachShader(program, frag);
+
+    if (gl.getProgramParameter(program, gl.LINK_STATUS) == 0) {
+        throw new Error(gl.getProgramInfoLog(program));
+    }
+    return program;
+}
+
+/** Loads a file from the server */
+async function loadFile(filename: string): Promise<string> {
+    return await (await fetch(`/data/${filename}`)).text();
 }
 
 async function start(): Promise<void> {
@@ -33,12 +53,11 @@ async function start(): Promise<void> {
 
     const vertexShader = await compileShader(gl, gl.VERTEX_SHADER, 'shadertoy.vert');
     const fragmentShader = await compileShader(gl, gl.FRAGMENT_SHADER, 'shadertoy.frag');
+    const shaderProgram = await linkProgram(gl, vertexShader, fragmentShader);
 
-    const shaderProgram = unnull(gl.createProgram());
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
-    gl.useProgram(shaderProgram);
+    function reloadShader() {
+        fragmentShader
+    }
 
     const vbo = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -60,7 +79,8 @@ async function start(): Promise<void> {
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, stride * 4, offset * 4);
 
-    const timeUniformLocation = gl.getUniformLocation(shaderProgram, 'uTime');
+    const timeLoc = gl.getUniformLocation(shaderProgram, 'uTime');
+    const arLoc = gl.getUniformLocation(shaderProgram, 'uAspectRatio');
     const startTime = (window.performance || Date).now();
 
     // Start the background colour as black
@@ -78,7 +98,8 @@ async function start(): Promise<void> {
         
         gl.useProgram(shaderProgram);
         gl.bindVertexArray(vao);
-        gl.uniform1f(timeUniformLocation, ((window.performance || Date).now() - startTime) / 1000);
+        gl.uniform1f(timeLoc, ((window.performance || Date).now() - startTime) / 1000);
+        gl.uniform1f(arLoc, canvas.width / canvas.height);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         // gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);

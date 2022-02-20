@@ -1,8 +1,9 @@
+#version 300 es
 precision mediump float;
 
-attribute vec3 aPos;
+in vec3 aPos;
 
-varying vec2 vPos;
+out vec2 vPos;
 
 void main() {
   gl_Position = vec4(aPos, 1);
