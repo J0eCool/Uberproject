@@ -15,49 +15,69 @@ function unnull<T>(val: T|null): T {
     return val;
 }
 
-async function compileShader(gl: WebGLRenderingContextBase, kind: number, filename: string): Promise<WebGLShader> {
-    const shader = unnull(gl.createShader(kind));
-    const text = await (await fetch(filename)).text();
+/** Loads a file from the server's data/ folder */
+async function loadFile(filename: string): Promise<string> {
+    return await (await fetch(`/data/${filename}`)).text();
+}
+
+type GLRender = WebGLRenderingContextBase;
+
+function compileShader(gl: GLRender, shader: WebGLShader, text: string) {
     gl.shaderSource(shader, text);
     gl.compileShader(shader);
-
+    
     if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) == 0) {
         throw new Error(gl.getShaderInfoLog(shader));
     }
+}
+async function createShader(gl: GLRender, kind: number, filename: string): Promise<WebGLShader> {
+    const shader = unnull(gl.createShader(kind));
+    const text = await loadFile(filename);
+    compileShader(gl, shader, text);
     return shader;
 }
 
-async function linkProgram(gl: WebGLRenderingContextBase, vert: WebGLShader, frag: WebGLShader): Promise<WebGLProgram> {
-    const program = unnull(gl.createProgram());
-    gl.attachShader(program, vert);
-    gl.attachShader(program, frag);
+async function linkProgram(gl: GLRender, program: WebGLProgram) {
     gl.linkProgram(program);
     gl.useProgram(program);
-    // gl.detachShader(program, vert);
-    // gl.detachShader(program, frag);
 
     if (gl.getProgramParameter(program, gl.LINK_STATUS) == 0) {
         throw new Error(gl.getProgramInfoLog(program));
     }
-    return program;
 }
+async function createProgram(gl: GLRender, vert: WebGLShader, frag: WebGLShader): Promise<WebGLProgram> {
+    const program = unnull(gl.createProgram());
+    gl.attachShader(program, vert);
+    gl.attachShader(program, frag);
+    linkProgram(gl, program);
+    // gl.detachShader(program, vert);
+    // gl.detachShader(program, frag);
 
-/** Loads a file from the server */
-async function loadFile(filename: string): Promise<string> {
-    return await (await fetch(`/data/${filename}`)).text();
+    return program;
 }
 
 async function start(): Promise<void> {
     const canvas = <HTMLCanvasElement>unnull(document.getElementById('canvas'));
     const gl = unnull(canvas.getContext('webgl2'));
 
-    const vertexShader = await compileShader(gl, gl.VERTEX_SHADER, 'shadertoy.vert');
-    const fragmentShader = await compileShader(gl, gl.FRAGMENT_SHADER, 'shadertoy.frag');
-    const shaderProgram = await linkProgram(gl, vertexShader, fragmentShader);
+    const vertexShader = await createShader(gl, gl.VERTEX_SHADER, 'shadertoy.vert');
+    const fragmentShader = await createShader(gl, gl.FRAGMENT_SHADER, 'shadertoy.frag');
+    const shaderProgram = await createProgram(gl, vertexShader, fragmentShader);
 
-    function reloadShader() {
-        fragmentShader
-    }
+    // every second, check if the text has changed, if so reload
+    // let oldFrag: string|null = null;
+    let oldFrag = '';
+    setInterval(async () => {
+        const text = await loadFile('shadertoy.frag');
+        // only check this once in case the compile+link throws an error
+        const changed = text != oldFrag;
+        oldFrag = text;
+        if (changed) {
+            console.log('yo dog')
+            compileShader(gl, fragmentShader, text);
+            linkProgram(gl, shaderProgram);
+        }
+    }, 1000)
 
     const vbo = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -98,8 +118,10 @@ async function start(): Promise<void> {
         
         gl.useProgram(shaderProgram);
         gl.bindVertexArray(vao);
-        gl.uniform1f(timeLoc, ((window.performance || Date).now() - startTime) / 1000);
-        gl.uniform1f(arLoc, canvas.width / canvas.height);
+        gl.uniform1f(gl.getUniformLocation(shaderProgram, 'uTime'),
+            ((window.performance || Date).now() - startTime) / 1000);
+        gl.uniform1f(gl.getUniformLocation(shaderProgram, 'uAspectRatio'),
+            canvas.width / canvas.height);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         // gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);

@@ -78,6 +78,11 @@ function main(): void {
     // store shaders in data/shaders dir
     // in general store dynamic data in data/ folder
 
+    app.get('/data/*', (req, res) => {
+        console.log(`GET for data file ${req.path}`);
+        const path = `data/${req.path.substring('/data/'.length)}`;
+        sendFile(path, res);
+    });
     app.get('*', (req, res) => {
         console.log(`GET for ${req.path}`);
         const path = getFilename(req.path);
