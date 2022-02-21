@@ -3,7 +3,7 @@ const path = require('path');
 module.exports = {
     entry: {
         notes: './src/public/notes.tsx',
-        shadertoy: './src/public/shadertoy.ts',
+        shadertoy: './src/public/shadertoy.tsx',
     },
     mode: 'development',
     module: {

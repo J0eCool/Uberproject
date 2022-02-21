@@ -1,15 +1,8 @@
-// This example creates an HTML canvas which uses WebGL to
-// render spinning confetti using JavaScript. We're going
-// to walk through the code to understand how it works, and
-// see how TypeScript's tooling provides useful insight.
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 
-// This example builds off: example:working-with-the-dom
-
-// First up, we need to create an HTML canvas element, which
-// we do via the DOM API and set some inline style attributes:
-
-function unnull<T>(val: T|null): T {
-    if (val == null) {
+function unnull<T>(val: T|null|undefined): T {
+    if (val == null || val == undefined) {
         throw "assert failed: was null";
     }
     return val;
@@ -27,7 +20,7 @@ function compileShader(gl: GLRender, shader: WebGLShader, text: string) {
     gl.compileShader(shader);
     
     if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) == 0) {
-        throw new Error(gl.getShaderInfoLog(shader));
+        throw new Error(unnull(gl.getShaderInfoLog(shader)));
     }
 }
 async function createShader(gl: GLRender, kind: number, filename: string): Promise<WebGLShader> {
@@ -42,7 +35,7 @@ async function linkProgram(gl: GLRender, program: WebGLProgram) {
     gl.useProgram(program);
 
     if (gl.getProgramParameter(program, gl.LINK_STATUS) == 0) {
-        throw new Error(gl.getProgramInfoLog(program));
+        throw new Error(unnull(gl.getProgramInfoLog(program)));
     }
 }
 async function createProgram(gl: GLRender, vert: WebGLShader, frag: WebGLShader): Promise<WebGLProgram> {
@@ -56,8 +49,22 @@ async function createProgram(gl: GLRender, vert: WebGLShader, frag: WebGLShader)
     return program;
 }
 
-async function start(): Promise<void> {
-    const canvas = <HTMLCanvasElement>unnull(document.getElementById('canvas'));
+function App(props: any) {
+    return <div>
+        <div>
+            <button onClick={() => unnull(document.getElementById('canvas')).requestFullscreen()}>Fullscreen</button>
+        </div>
+        <canvas id="canvas" width={1920} height={1080} />
+    </div>;
+}
+
+async function initReact() {
+    let app = <App />;
+    ReactDOM.render(app, document.getElementById('app'));
+}
+
+async function initGL(): Promise<void> {
+    const canvas = unnull(document.getElementById('canvas')) as HTMLCanvasElement;
     const gl = unnull(canvas.getContext('webgl2'));
 
     const vertexShader = await createShader(gl, gl.VERTEX_SHADER, 'shadertoy.vert');
@@ -77,7 +84,12 @@ async function start(): Promise<void> {
             compileShader(gl, fragmentShader, text);
             linkProgram(gl, shaderProgram);
         }
-    }, 1000)
+    }, 1000);
+
+    // next: fullscreen that shit
+    // then: param sliders
+    // then: multiple files
+        // save settings per shader - have a shadertoy.json file
 
     const vbo = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -130,4 +142,9 @@ async function start(): Promise<void> {
     })();
 }
 
-start();
+async function main() {
+    await initReact();
+    await initGL();
+}
+
+main();
